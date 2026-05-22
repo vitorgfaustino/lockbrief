@@ -2,7 +2,7 @@
 
 ## Pré-requisitos
 
-- Node.js 20+ para alinhar com o CI.
+- Node.js `>=22.12.0` para alinhar com Wrangler, Miniflare, Vite e CI.
 - Conta Cloudflare.
 - Wrangler via dependência do projeto (`npx wrangler`) ou instalação global.
 

@@ -19,6 +19,8 @@ Envie senhas, tokens, chaves de API ou qualquer informação sensível com segur
 
 ### 1. Executar localmente
 
+Pré-requisito: Node.js `>=22.12.0`.
+
 ```bash
 git clone https://github.com/vitorgfaustino/lockbrief.git
 cd lockbrief

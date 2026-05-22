@@ -5,6 +5,9 @@
   "description": "Compartilhamento seguro de segredos que se autodestroem",
   "license": "AGPL-3.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "wrangler dev --config wrangler.toml",
     "dev:private": "wrangler dev --config wrangler.local.toml",
@@ -23,7 +26,7 @@
     "@cloudflare/vitest-pool-workers": "^0.16.8",
     "@cloudflare/workers-types": "^4.20250516.0",
     "@types/node": "^22.19.19",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.0",
     "typescript": "^5.7.0",
     "vitest": "^4.1.7",
     "wrangler": "^4.14.1"

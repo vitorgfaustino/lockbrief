@@ -301,6 +301,7 @@ A IA deve parar e entregar handoff quando a tarefa depender de:
 Setup local completo:
 
 ```bash
+node --version  # precisa ser >=22.12.0
 npm install
 npm run dev-init
 npm run build
