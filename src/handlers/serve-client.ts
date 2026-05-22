@@ -17,6 +17,8 @@ const HTML = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LockBrief — Segredos efêmeros. Controle local.</title>
   <meta name="description" content="Compartilhe segredos que se autodestroem. Criptografia no navegador. Leitura única.">
+  <link rel="icon" type="image/png" href="/assets/favicon.png">
+  <link rel="shortcut icon" type="image/x-icon" href="/assets/favicon.ico">
   <link rel="stylesheet" href="/styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
