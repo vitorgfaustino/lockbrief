@@ -6,6 +6,7 @@ import { HTML_HEADERS, CSP_HEADER } from "../lib/headers";
 import pkg from "../../package.json";
 
 const VERSION = pkg.version;
+const CURRENT_YEAR = new Date().getFullYear();
 
 const HTML = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -17,14 +18,8 @@ const HTML = `<!DOCTYPE html>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="icon" type="image/png" href="/assets/favicon.png">
-    <link rel="shortcut icon" type="image/x-icon" href="/assets/favicon.ico">
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      var el = document.getElementById("footerYear");
-      if (el) el.textContent = new Date().getFullYear();
-    });
-  </script>
+  <link rel="icon" type="image/png" href="/assets/favicon.png">
+  <link rel="shortcut icon" type="image/x-icon" href="/assets/favicon.ico">
 </head>
 <body>
 
@@ -90,7 +85,7 @@ const HTML = `<!DOCTYPE html>
 
   <footer class="app-footer">
     <div class="footer-inner">
-      <span id="footerYear">2026</span> v${VERSION} ·
+      <span>${CURRENT_YEAR}</span> v${VERSION} ·
       <a href="/privacidade" class="footer-link">Privacidade</a> ·
       <span>Criado por <a href="https://github.com/vitorgfaustino/lockbrief" class="footer-link" target="_blank" rel="noopener">Vitor Faustino</a></span>
     </div>
