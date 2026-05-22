@@ -15,13 +15,8 @@ const HTML = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Privacidade — LockBrief</title>
   <link rel="stylesheet" href="/styles.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/png" href="/assets/favicon.png">
-  <link rel="shortcut icon" type="image/x-icon" href="/assets/favicon.ico">
 </head>
-<body>
+<body class="privacy-page">
 
   <header class="app-header">
     <div class="header-inner">
@@ -35,51 +30,101 @@ const HTML = `<!DOCTYPE html>
   <main class="app-main">
     <div class="main-inner">
       <div class="content-column">
-        <div class="card">
-          <h1 class="card-title">Política de Privacidade</h1>
+        <article class="card privacy-document">
+          <header class="privacy-hero">
+            <span class="privacy-kicker">Privacidade</span>
+            <h1 class="privacy-title">Política de Privacidade</h1>
+            <p class="privacy-lead">O LockBrief foi projetado com <strong>Privacy by Design</strong>. O servidor não recebe o segredo em texto claro, não recebe a chave de descriptografia e não constrói perfis sobre quem usa o sistema.</p>
+          </header>
 
-          <p>O LockBrief foi projetado com <strong>Privacy by Design</strong>. Nenhum dado pessoal é coletado, armazenado ou processado pelo servidor.</p>
+          <section class="privacy-section" aria-labelledby="privacy-never-title">
+            <div class="privacy-section-head">
+              <span class="privacy-badge privacy-badge-success">Nunca acessa</span>
+              <h2 id="privacy-never-title" class="privacy-section-title">O que o servidor não vê</h2>
+            </div>
+            <p class="privacy-body">A aplicação foi desenhada para operar com o mínimo de informação possível. Estes dados permanecem fora do alcance do backend durante todo o fluxo normal de uso.</p>
+            <ul class="privacy-list privacy-list-success">
+              <li class="privacy-list-item">Conteúdo do segredo em texto claro.</li>
+              <li class="privacy-list-item">Chave de descriptografia usada para abrir o segredo.</li>
+              <li class="privacy-list-item">Senha adicional definida por quem compartilha.</li>
+              <li class="privacy-list-item">Endereço IP persistido pela própria aplicação.</li>
+              <li class="privacy-list-item">User-Agent persistido, cookies de rastreamento ou identificadores de dispositivo.</li>
+            </ul>
+          </section>
 
-          <h2 style="margin-top:24px;font-size:1.125rem;font-weight:700;color:var(--text-primary)">O que o servidor <span style="color:var(--success)">NUNCA</span> acessa</h2>
-          <ul style="margin-top:12px;display:flex;flex-direction:column;gap:8px;color:var(--text-secondary);font-size:0.9375rem;list-style:none">
-            <li>✅ Conteúdo do segredo em texto claro</li>
-            <li>✅ Chave de descriptografia</li>
-            <li>✅ Senha adicional</li>
-            <li>✅ Endereço IP do usuário</li>
-            <li>✅ User-Agent do navegador</li>
-            <li>✅ Cookies, sessões ou identificadores de dispositivo</li>
+          <section class="privacy-section" aria-labelledby="privacy-needed-title">
+            <div class="privacy-section-head">
+              <span class="privacy-badge privacy-badge-danger">Acesso mínimo</span>
+              <h2 id="privacy-needed-title" class="privacy-section-title">O que o servidor precisa processar</h2>
+            </div>
+            <p class="privacy-body">Para localizar, expirar e entregar um envelope criptografado, o backend opera apenas sobre metadados técnicos mínimos e temporários.</p>
+            <ul class="privacy-list privacy-list-danger">
+              <li class="privacy-list-item">Um identificador derivado, calculado como hash SHA-256, para localizar o registro correto.</li>
+              <li class="privacy-list-item">O envelope criptografado armazenado temporariamente até a leitura ou expiração.</li>
+              <li class="privacy-list-item">O TTL escolhido para controlar disponibilidade, expiração e limpeza automática.</li>
+            </ul>
+          </section>
+
+          <section class="privacy-section" aria-labelledby="privacy-crypto-title">
+            <div class="privacy-section-head">
+              <span class="privacy-badge privacy-badge-neutral">Criptografia local</span>
+              <h2 id="privacy-crypto-title" class="privacy-section-title">Como a criptografia funciona</h2>
+            </div>
+            <p class="privacy-body">Toda a criptografia e a descriptografia acontecem <strong>exclusivamente no navegador</strong>, com Web Crypto API. A chave fica apenas no fragmento da URL, em <code>#...</code>, que não é enviado ao servidor em requisições HTTP.</p>
+            <p class="privacy-body">Os algoritmos previstos para o fluxo são AES-GCM-256 para cifragem, PBKDF2-SHA256 com 210.000 iterações para derivação de senha adicional e HKDF-SHA256 para composição final de chave.</p>
+          </section>
+
+          <section class="privacy-section" aria-labelledby="privacy-retention-title">
+            <div class="privacy-section-head">
+              <span class="privacy-badge privacy-badge-accent">Retenção</span>
+              <h2 id="privacy-retention-title" class="privacy-section-title">Quanto tempo os dados existem</h2>
+            </div>
+            <p class="privacy-body">A retenção é estritamente operacional. O sistema existe para manter o envelope apenas pelo tempo necessário para leitura e expiração automática.</p>
+            <ul class="privacy-list privacy-list-accent">
+              <li class="privacy-list-item">Segredos de leitura única são removidos quando o envelope criptografado é entregue ao navegador.</li>
+              <li class="privacy-list-item">Segredos com mais de uma leitura permanecem disponíveis apenas até o prazo de expiração configurado.</li>
+              <li class="privacy-list-item">Registros expirados são limpos periodicamente por tarefa automática.</li>
+              <li class="privacy-list-item">Depois do consumo ou da expiração, o conteúdo não é recuperável pelo aplicativo.</li>
+            </ul>
+          </section>
+
+          <section class="privacy-section" aria-labelledby="privacy-lgpd-title">
+            <div class="privacy-section-head">
+              <span class="privacy-badge privacy-badge-neutral">Conformidade</span>
+              <h2 id="privacy-lgpd-title" class="privacy-section-title">LGPD e minimização</h2>
+            </div>
+            <p class="privacy-body">Esta aplicação não foi desenhada para coletar ou explorar dados pessoais. Não há cadastro, perfil de usuário, histórico nominal, analytics comportamental ou base dedicada à identificação de titulares.</p>
+            <p class="privacy-body">Para dúvidas sobre privacidade, uso do software ou exercício de direitos aplicáveis ao operador da instância, o canal de contato permanece o repositório oficial do projeto.</p>
+          </section>
+
+          <div class="privacy-actions">
+            <a href="/" class="btn btn-secondary privacy-back-link">
+              <svg class="icon btn-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+              Voltar ao início
+            </a>
+          </div>
+        </article>
+      </div>
+
+      <aside class="info-column">
+        <div class="info-panel privacy-side-panel">
+          <h2 class="info-title privacy-side-title">Resumo rápido</h2>
+          <ul class="info-list privacy-side-list">
+            <li class="info-item"><span class="info-bullet"></span><div><strong>Criptografia local</strong><p>O segredo é cifrado antes do envio. O backend recebe apenas um envelope criptografado.</p></div></li>
+            <li class="info-item"><span class="info-bullet"></span><div><strong>Chave fora da requisição</strong><p>A chave de descriptografia fica no fragmento do link e não é enviada ao servidor.</p></div></li>
+            <li class="info-item"><span class="info-bullet"></span><div><strong>Retenção mínima</strong><p>O registro existe apenas até leitura, expiração ou limpeza automática.</p></div></li>
+            <li class="info-item"><span class="info-bullet"></span><div><strong>Sem rastreamento</strong><p>Sem contas, cookies de analytics, fingerprinting ou perfil comportamental.</p></div></li>
           </ul>
-
-          <h2 style="margin-top:24px;font-size:1.125rem;font-weight:700;color:var(--text-primary)">O que o servidor <span style="color:var(--error)">precisa</span> acessar</h2>
-          <ul style="margin-top:12px;display:flex;flex-direction:column;gap:8px;color:var(--text-secondary);font-size:0.9375rem;list-style:none">
-            <li>• Um identificador derivado (hash SHA-256) para localizar o segredo</li>
-            <li>• O envelope criptografado (AES-GCM-256) armazenado temporariamente</li>
-            <li>• O TTL escolhido para controlar a expiração</li>
-          </ul>
-
-          <h2 style="margin-top:24px;font-size:1.125rem;font-weight:700;color:var(--text-primary)">Como funciona a criptografia</h2>
-          <p style="margin-top:8px;color:var(--text-secondary);font-size:0.9375rem">Toda criptografia e descriptografia acontece <strong>exclusivamente no navegador</strong> usando a Web Crypto API. A chave de descriptografia viaja apenas no fragmento da URL (<code>#...</code>), que não é enviado ao servidor em requisições HTTP.</p>
-
-          <p style="margin-top:12px;color:var(--text-secondary);font-size:0.9375rem">Algoritmos utilizados: AES-GCM-256, PBKDF2-SHA256 (210.000 iterações), HKDF-SHA256 (RFC 5869).</p>
-
-          <h2 style="margin-top:24px;font-size:1.125rem;font-weight:700;color:var(--text-primary)">Retenção de dados</h2>
-          <ul style="margin-top:12px;display:flex;flex-direction:column;gap:8px;color:var(--text-secondary);font-size:0.9375rem;list-style:none">
-            <li>• Segredos com leitura única são removidos imediatamente após o primeiro acesso.</li>
-            <li>• Segredos configurados para múltiplas leituras permanecem até a expiração.</li>
-            <li>• Segredos expirados são removidos automaticamente a cada 30 minutos.</li>
-            <li>• Nenhum dado persiste após o consumo ou expiração.</li>
-          </ul>
-
-          <h2 style="margin-top:24px;font-size:1.125rem;font-weight:700;color:var(--text-primary)">LGPD</h2>
-          <p style="margin-top:8px;color:var(--text-secondary);font-size:0.9375rem">Esta aplicação não coleta, armazena ou processa dados pessoais conforme definido pela LGPD. Não há base de dados com informações de titulares, não há identificação de usuários e não há compartilhamento de dados com terceiros.</p>
-
-          <p style="margin-top:12px;color:var(--text-secondary);font-size:0.9375rem">Para exercer direitos previstos na LGPD ou para questões de privacidade, entre em contato pelo GitHub do projeto.</p>
-
-          <div style="margin-top:32px">
-            <a href="/" class="btn btn-secondary btn-full">Voltar</a>
+          <div class="info-divider"></div>
+          <div class="info-technical">
+            <h3 class="info-subtitle">Chave e senha</h3>
+            <ul class="tech-list privacy-side-tech-list">
+              <li><strong>Chave</strong> — gerada automaticamente, necessária para descriptografar o conteúdo.</li>
+              <li><strong>Senha adicional</strong> — opcional, definida por quem compartilha, nunca enviada ao backend.</li>
+            </ul>
           </div>
         </div>
-      </div>
+      </aside>
     </div>
   </main>
 

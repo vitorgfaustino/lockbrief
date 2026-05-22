@@ -1,0 +1,81 @@
+name: Bug
+description: Reporte um bug encontrado no LockBrief
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Antes de abrir**: verifique se o bug já não foi reportado.
+        Não inclua segredos reais, chaves, tokens ou dados pessoais no relatório.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Resumo
+      description: Descreva o bug em uma ou duas frases.
+      placeholder: Ex — Ao criar um segredo com senha, o link gerado não funciona.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Passos para reproduzir
+      description: Lista numerada do passo a passo.
+      placeholder: |
+        1. Acesse a página inicial
+        2. Digite um segredo e defina uma senha
+        3. Clique em "Criar link seguro"
+        4. Abra o link gerado
+        5. Insira a senha correta
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento esperado
+      description: O que deveria acontecer.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportamento atual
+      description: O que está acontecendo de errado.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versão do LockBrief
+      description: Versão exibida no rodapé da aplicação.
+      placeholder: v1.0.0
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Ambiente
+      options:
+        - Produção (workers.dev)
+        - Local (wrangler dev)
+        - Ambos
+    validations:
+      required: true
+  - type: textarea
+    id: browser
+    attributes:
+      label: Navegador e SO
+      placeholder: Ex — Chrome 126 no macOS 15
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs do console (DevTools)
+      description: Cole erros do console do navegador, se houver.
+      render: shell
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmações
+      options:
+        - label: Não estou incluindo segredos reais, chaves ou tokens neste relatório
+          required: true
+        - label: Verifiquei se este bug já não foi reportado em outra issue
+          required: true

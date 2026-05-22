@@ -1,0 +1,41 @@
+name: Pergunta / Dúvida
+description: Tire uma dúvida sobre o LockBrief
+title: "[Dúvida]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use este formulário para dúvidas técnicas, de uso ou de deploy.
+        Não inclua segredos reais, chaves ou tokens.
+  - type: textarea
+    id: goal
+    attributes:
+      label: O que você quer fazer?
+      description: Descreva o objetivo.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Contexto atual
+      description: O que você já tentou ou configurou.
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Ambiente
+      options:
+        - Produção (workers.dev)
+        - Local (wrangler dev)
+        - Ambos
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Confirmações
+      options:
+        - label: Li a documentação (README, docs/) antes de perguntar
+          required: true
+        - label: Não estou incluindo dados sensíveis na pergunta
+          required: true

@@ -1,0 +1,35 @@
+name: Close External PR
+
+on:
+  pull_request_target:
+    types: [opened]
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login != github.repository_owner
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const msg = `## Aviso
+
+            Este repositório não aceita Pull Requests externos no momento.
+
+            Se esta contribuição não for do mantenedor principal, o PR será fechado automaticamente.
+
+            Para bugs, dúvidas ou sugestões, use a aba **Issues**.
+
+            Obrigado pelo interesse no LockBrief.`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: msg
+            });
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              state: "closed"
+            });

@@ -1,0 +1,144 @@
+# LockBrief — Especificação Funcional (FUNCTIONAL)
+
+## Rotas
+
+| Método | Rota | Descrição | Status |
+|---|---|---|---|
+| GET | `/` | Serve HTML da aplicação | 200 |
+| GET | `/privacidade` | Serve política pública de privacidade | 200 |
+| POST | `/api/store` | Armazena envelope criptografado | 201 |
+| POST | `/api/info` | Retorna metadados sem consumir segredo | 200 ou 404 |
+| POST | `/api/fetch` | Consome e retorna envelope criptografado | 200 |
+| GET | `/api/health` | Health check (conectividade D1) | 200 ou 503 |
+
+## API: POST /api/store
+
+### Request
+```json
+{
+  "idHash": "<string, base64url, 43 chars>",
+  "payload": "<string, envelope JSON>",
+  "ttl": 3600,
+  "oneTime": true
+}
+```
+
+### Validações
+1. Content-Type deve conter `application/json`
+2. Body ≤ 100 KB
+3. JSON válido
+4. `idHash` string base64url de 43 caracteres
+5. `payload` string JSON válida, envelope com `{v, alg, iv, ciphertext, kdf, salt}`
+6. `ttl` ∈ {3600, 86400, 604800}
+7. `oneTime` é opcional; qualquer valor diferente de `false` vira leitura única
+8. `idHash` não pode existir no banco (erro genérico em duplicata)
+
+### Responses
+- `201` + `{ "ok": true }`
+- `400` + `{ "error": "invalid_request" }`
+- `404` + `{ "error": "not_available" }` (colisão de idHash)
+
+## API: POST /api/fetch
+
+### Request
+```json
+{
+  "idHash": "<string, base64url, 43 chars>"
+}
+```
+
+### Comportamento condicional (one_time)
+
+| `one_time` | Comportamento |
+|---|---|
+| `1` (padrão) | Leitura única: `UPDATE ... RETURNING` + `DELETE`. Segredo removido após retorno. |
+| `0` | Leitura múltipla: apenas `SELECT`. Segredo permanece até expiração. |
+
+### Fluxo transacional (one_time = 1)
+1. Validar request e `idHash`
+2. Gerar `consume_token` aleatório (256 bits)
+3. Tentar `UPDATE ... SET consumed_at, consume_token WHERE one_time = 1 ... RETURNING encrypted_payload`
+4. Se sucesso: `DELETE` e retornar payload
+5. Fallback (sem RETURNING): `UPDATE` → `changes()` → `SELECT` pelo token → `DELETE`
+6. Se nenhum resultado: tentar `SELECT WHERE one_time = 0` (multi-leitura)
+7. Se nenhum resultado: erro genérico
+
+### Responses
+- `200` + `{ "payload": "<string>" }`
+- `404` + `{ "error": "not_available" }`
+
+## API: POST /api/info
+
+Retorna metadados do segredo **sem consumi-lo**.
+
+### Request
+```json
+{
+  "idHash": "<string, base64url, 43 chars>"
+}
+```
+
+### Response
+- `200` + `{ "oneTime": true, "expiresAt": 1747861200 }`
+- `404` + `{ "error": "not_available" }`
+
+## API: GET /api/health
+
+### Responses
+- `200` + `{ "status": "ok", "db": "connected" }`
+- `503` + `{ "status": "error", "db": "disconnected" }`
+
+## Scheduled: cleanup
+
+- Frequência: a cada 30 minutos
+- Query: `DELETE FROM secrets WHERE expires_at <= ? AND consumed_at IS NULL`
+- Não deleta segredos em processo de consumo (`consumed_at IS NULL`)
+
+## Banco D1
+
+### Tabela `secrets`
+
+| Coluna | Tipo | Descrição |
+|---|---|---|
+| id_hash | TEXT (PK) | SHA-256 do rawId em base64url |
+| encrypted_payload | TEXT | Envelope criptográfico JSON |
+| expires_at | INTEGER | Unix timestamp (segundos) |
+| created_at | INTEGER | Unix timestamp (segundos) |
+| consumed_at | INTEGER | Unix timestamp, nullable |
+| consume_token | TEXT | Token de guarda transacional, nullable |
+| one_time | INTEGER | 1 para leitura única, 0 para multi-leitura |
+
+### Índices
+- `idx_secrets_expires_at` em `expires_at`
+
+## Limites
+
+| Artefato | Limite |
+|---|---|
+| Plaintext | 64 KB |
+| Payload criptografado | 100 KB |
+| rawId | 32 bytes (43 chars base64url) |
+| key | 32 bytes (43 chars base64url) |
+| idHash | 43 caracteres base64url |
+
+## Abuse Controls
+
+- Contadores em memória (escopo global do isolate)
+- `POST /api/store`: 30 requests/min
+- `POST /api/fetch`: 60 requests/min
+- Sem persistência de IP ou metadados de cliente
+
+## Headers de segurança
+
+### HTML (GET /)
+- CSP: `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`
+- HSTS: `max-age=31536000; includeSubDomains; preload`
+- X-Frame-Options: `DENY`
+- Referrer-Policy: `no-referrer`
+- Cache-Control: `no-store`
+
+### JSON (API)
+- Content-Type: `application/json; charset=utf-8`
+- Cache-Control: `no-store`
+- Referrer-Policy: `no-referrer`
+- X-Content-Type-Options: `nosniff`

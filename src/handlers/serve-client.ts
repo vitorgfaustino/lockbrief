@@ -1,8 +1,8 @@
 /**
  * GET / — Serve o cliente HTML com assets embutidos.
  *
- * Em producao, o HTML contem referencias a /client.js e /styles.css
- * que sao servidos separadamente para CSP sem 'unsafe-inline'.
+ * Em produção, o HTML contém referências a /client.js e /styles.css
+ * que são servidos separadamente para CSP sem 'unsafe-inline'.
  */
 
 import { HTML_HEADERS, CSP_HEADER } from "../lib/headers";
@@ -21,9 +21,6 @@ const HTML = `<!DOCTYPE html>
   <link rel="icon" type="image/png" href="/assets/favicon.png">
   <link rel="shortcut icon" type="image/x-icon" href="/assets/favicon.ico">
   <link rel="stylesheet" href="/styles.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
 

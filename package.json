@@ -1,0 +1,31 @@
+{
+  "name": "lockbrief",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Compartilhamento seguro de segredos que se autodestroem",
+  "license": "AGPL-3.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --config wrangler.toml",
+    "dev:private": "wrangler dev --config wrangler.local.toml",
+    "dev-init": "wrangler d1 migrations apply DB --local --config wrangler.toml",
+    "build": "npm run build:client",
+    "deploy": "npm run d1:migrate:remote && wrangler deploy --config wrangler.toml",
+    "deploy:private": "npm run build && npm run d1:migrate:remote:private && wrangler deploy --config wrangler.local.toml",
+    "typecheck": "tsc --noEmit",
+    "build:client": "node build-client.mjs",
+    "test": "vitest run",
+    "d1:migrate:local": "wrangler d1 migrations apply DB --local --config wrangler.toml",
+    "d1:migrate:remote": "wrangler d1 migrations apply DB --remote --config wrangler.toml",
+    "d1:migrate:remote:private": "wrangler d1 migrations apply DB --remote --config wrangler.local.toml"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.16.8",
+    "@cloudflare/workers-types": "^4.20250516.0",
+    "@types/node": "^22.19.19",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.7",
+    "wrangler": "^4.14.1"
+  }
+}

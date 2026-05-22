@@ -1,0 +1,42 @@
+node_modules/
+dist/
+.wrangler/
+*.log
+
+# Environment
+.env
+.env.*
+!.env.example
+.dev.vars
+
+# Dev database
+.dev-env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/*
+!.vscode/settings.json
+.idea/
+
+# Python
+.venv/
+__pycache__/
+
+# Wrangler
+wrangler.local.toml
+wrangler.*.local.toml
+
+# Local rollback artifacts
+rollback/
+
+# Certificates
+*.pem
+*.key
+*.crt
+
+# Copilot / AI artifacts
+.copilot/
+design-system/
