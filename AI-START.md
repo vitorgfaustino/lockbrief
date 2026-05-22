@@ -243,6 +243,8 @@ Comportamento atual documentado pela Cloudflare:
 - provisiona recursos suportados, incluindo D1
 - atualiza a configuração Wrangler onde aplicável, inclusive IDs de recursos criados
 - usa Workers Builds para build/deploy
+- publica a URL `workers.dev` por padrão via `workers_dev = true`
+- não cria Preview URLs por padrão porque o template define `preview_urls = false`
 
 Regra de dados:
 

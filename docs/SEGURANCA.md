@@ -113,6 +113,7 @@ Nunca é revelado se o segredo:
 - Deploy manual com valores reais deve usar `wrangler.local.toml`.
 - Deploy via painel deve manter secrets e variáveis reais na Cloudflare, não no repositório público.
 - O Deploy Button pode gerar um repositório operacional com IDs reais provisionados pela Cloudflare. Se a política do operador proíbe IDs reais no GitHub, esse repositório deve permanecer privado ou o operador deve usar deploy manual.
+- O template público publica `workers.dev` por padrão, mas mantém Preview URLs desligadas para não expor rotas adicionais sem decisão explícita do operador.
 
 ## Limites do navegador (extensões e side-channels)
 

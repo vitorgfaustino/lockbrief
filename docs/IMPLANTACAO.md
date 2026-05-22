@@ -19,6 +19,12 @@ O repositório público nunca deve conter configuração operacional real.
 
 `database_id` não é senha, mas é identificador operacional real. Pela regra deste projeto, ele não deve ser publicado em repositório público.
 
+## Rotas públicas e previews
+
+O template público mantém `workers_dev = true` para que Deploy Button e Workers Builds entreguem uma URL `workers.dev` imediatamente após o deploy.
+
+O template define `preview_urls = false` para não criar URLs de preview adicionais por padrão. Se o operador quiser previews por branch ou ambiente, deve habilitar isso conscientemente no repositório operacional, não no template público.
+
 ## Executar localmente
 
 ```bash
@@ -82,8 +88,11 @@ Comportamento esperado:
 3. Recursos suportados, incluindo D1, podem ser provisionados automaticamente.
 4. A configuração Wrangler do repositório gerado pode ser atualizada com IDs reais dos recursos.
 5. Workers Builds executa build/deploy.
+6. A URL `workers.dev` é publicada por padrão; Preview URLs ficam desligadas no template público.
 
 Consequência operacional: o repositório fonte do LockBrief permanece limpo, mas o repositório gerado pelo Deploy Button pode conter IDs reais. Se isso violar a política do operador, mantenha esse repositório privado ou use o deploy manual privado com `wrangler.local.toml`.
+
+Regra prática para produção: trate o repositório operacional como privado mesmo que `database_id` não seja uma senha. O risco aqui não é segredo, é exposição de configuração real e de recursos vinculados à instância.
 
 ## Variáveis e secrets
 

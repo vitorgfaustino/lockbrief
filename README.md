@@ -38,7 +38,11 @@ Abra `http://localhost:8787`.
 
 O Deploy Button usa Workers Builds, lê o `wrangler.toml` público do projeto e pode provisionar automaticamente o D1. A Cloudflare pode criar um repositório operacional na sua conta GitHub/GitLab e atualizar a configuração com IDs reais dos recursos criados.
 
-Regra: se você não quer nenhum ID operacional no GitHub, mantenha o repositório gerado privado ou use o deploy manual com `wrangler.local.toml`.
+Recomendação importante para produção: mantenha o repositório operacional privado. `database_id` não é senha, mas o repositório gerado pelo deploy pode conter IDs reais de recursos e não deve ficar público em ambiente de produção.
+
+O template publica uma URL `workers.dev` por padrão e mantém Preview URLs desabilitadas para evitar URLs extras sem decisão explícita do operador.
+
+Regra: se você quer um repositório público como fonte, use-o só como fonte. Para operar em produção, mantenha o repositório gerado privado ou use o deploy manual com `wrangler.local.toml`.
 
 ### 3. Workers Builds/GitHub
 
