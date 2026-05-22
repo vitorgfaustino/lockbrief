@@ -2,6 +2,8 @@
 
 Envie senhas, tokens, chaves de API ou qualquer informação sensível com segurança real — o servidor **nunca vê** o conteúdo.
 
+[Conhecer a demonstração do sistema](https://lockbrief-demo.vitorgfaustino.workers.dev)
+
 ---
 
 ## Por que usar o LockBrief?
