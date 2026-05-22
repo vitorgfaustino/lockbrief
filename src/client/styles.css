@@ -159,9 +159,8 @@ button {
 }
 
 .logo::before {
-  content: "#";
-  color: var(--neon);
-  margin-right: 4px;
+  /* remove textual prefix when using image logo */
+  content: none;
 }
 
 .logo:hover, .logo:focus-visible {
