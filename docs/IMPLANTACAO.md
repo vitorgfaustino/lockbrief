@@ -19,6 +19,8 @@ O repositório público nunca deve conter configuração operacional real.
 
 `database_id` não é senha, mas é identificador operacional real. Pela regra deste projeto, ele não deve ser publicado em repositório público.
 
+Exceção operacional: um repositório gerado pelo Deploy Button ou conectado ao Workers Builds pode ter `wrangler.toml` atualizado pela Cloudflare com IDs reais. Nesse cenário, o arquivo deve ser tratado como configuração operacional protegida durante atualizações e o repositório deve permanecer privado se a política for não publicar IDs reais.
+
 ## Rotas públicas e previews
 
 O template público mantém `workers_dev = true` para que Deploy Button e Workers Builds entreguem uma URL `workers.dev` imediatamente após o deploy.
@@ -71,6 +73,8 @@ Depois busque e aplique somente fast-forward:
 git fetch upstream --tags --prune
 git diff --name-only HEAD..upstream/main
 git log --oneline HEAD..upstream/main
+git merge-base HEAD upstream/main
+git merge-base --is-ancestor HEAD upstream/main
 git merge --ff-only upstream/main
 npm install
 npm run dev-init
@@ -83,6 +87,7 @@ Se o remoto `upstream` já existir, confirme que ele aponta para `https://github
 
 Arquivos e valores protegidos durante atualização:
 
+- `wrangler.toml`, quando for configuração operacional versionada
 - `wrangler.local.toml`
 - `.dev.vars` e `.env*`
 - `database_id` real
@@ -94,16 +99,17 @@ Regras:
 
 1. Não use `git pull` cego de `origin` para atualizar o produto. `origin` pode ser operacional.
 2. Não copie `wrangler.toml` por cima de `wrangler.local.toml`.
-3. Não altere bindings, IDs reais, secrets ou variables como parte de uma atualização de código.
-4. Não use `git reset --hard`, `git checkout --`, `git clean`, rebase automático ou merge com conflito para "forçar" atualização.
-5. Se `git merge --ff-only upstream/main` falhar, resolva como divergência operacional e faça handoff manual.
-6. Se o upstream alterar `wrangler.toml`, trate a mudança como atualização do template público; reflita algo na configuração privada somente depois de revisar impacto em D1, cron, routes, workers.dev e preview URLs.
+3. Não substitua `wrangler.toml` operacional pelo template do upstream.
+4. Não altere bindings, IDs reais, secrets ou variables como parte de uma atualização de código.
+5. Não use `git reset --hard`, `git checkout --`, `git clean`, rebase automático, merge com conflito, `--allow-unrelated-histories`, `git push --force` ou `git push --force-with-lease` para "forçar" atualização.
+6. Se `git merge --ff-only upstream/main` falhar, resolva como divergência operacional: use o overlay protegido de `docs/ATUALIZACAO.md` quando autorizado, ou faça handoff manual.
+7. Se o upstream alterar `wrangler.toml`, trate a mudança como atualização do template público; em repositório operacional, preserve o arquivo local e reflita algo somente depois de revisar impacto em D1, cron, routes, workers.dev e preview URLs.
 
 Após validar localmente, publique conforme o método da instância:
 
 - Wrangler local: manter `wrangler.local.toml` e usar `npm run d1:migrate:remote:private` seguido de `npx wrangler deploy --config wrangler.local.toml`.
 - Workers Builds/GitHub: fazer push apenas para o repositório operacional correto, depois de confirmar que nenhum ID real será exposto em repositório público.
-- Deploy Button: atualizar o repositório gerado buscando o upstream oficial e preservar a configuração provisionada pela Cloudflare.
+- Deploy Button: atualizar o repositório gerado buscando o upstream oficial, preservar a configuração provisionada pela Cloudflare e nunca usar force push para reescrever a `main` operacional.
 
 ## Deploy manual privado com Wrangler
 
@@ -237,7 +243,7 @@ Executa 26 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`
 
 - [ ] `git status --short` revisado.
 - [ ] Nenhum `wrangler.local.toml`, `.dev.vars`, `.env`, token, secret ou `database_id` real aparece no diff.
-- [ ] `wrangler.toml` contém apenas placeholder público.
+- [ ] `wrangler.toml` contém apenas placeholder público no repositório fonte, ou foi preservado como configuração operacional privada.
 - [ ] `npm run typecheck` passa.
 - [ ] `npm run build` passa.
 - [ ] `npm test` passa com 26/26.

@@ -9,6 +9,9 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 ## [Não publicado]
 
 ### Documentação
+- Fluxo de atualização por IA agora classifica a instalação antes de aplicar mudanças, distinguindo `wrangler.toml` como template público ou configuração operacional versionada.
+- Runbook de atualização passou a documentar overlay protegido para repositórios com histórico divergente ou `unrelated histories`, sem `--allow-unrelated-histories`, reset, rebase automático ou push forçado.
+- Regras reforçam que `wrangler.toml` operacional de Deploy Button/Workers Builds não deve ser substituído pelo template do upstream.
 - Fluxo de atualização de instalações existentes agora exige busca no upstream oficial `https://github.com/vitorgfaustino/lockbrief.git`.
 - Orientação para IA e operação reforça que `origin` pode ser repositório operacional e que bindings, `wrangler.local.toml`, `database_id`, variables e secrets não devem ser alterados durante atualização.
 - Adicionados `docs/ATUALIZACAO.md` e `docs/OPERACAO-IA.md` como runbooks dedicados para atualização por upstream, operação guiada por IA e checkpoints manuais.

@@ -62,6 +62,8 @@ Depois busque e aplique somente fast-forward:
 
 ```bash
 git fetch upstream --tags --prune
+git merge-base HEAD upstream/main
+git merge-base --is-ancestor HEAD upstream/main
 git merge --ff-only upstream/main
 npm install
 npm run dev-init
@@ -72,7 +74,9 @@ npm test
 
 Se `upstream` já existir, confirme que ele aponta para `https://github.com/vitorgfaustino/lockbrief.git`.
 
-Durante atualização, não altere `wrangler.local.toml`, `.dev.vars`, `.env*`, `database_id` real, binding D1 `DB`, variables, secrets ou bindings configurados no dashboard da Cloudflare. Se houver conflito em configuração de deploy, pare e revise manualmente.
+Durante atualização, não altere `wrangler.local.toml`, `.dev.vars`, `.env*`, `database_id` real, binding D1 `DB`, variables, secrets ou bindings configurados no dashboard da Cloudflare. Em repositórios gerados pelo Deploy Button ou operacionais do Workers Builds, trate o `wrangler.toml` local como configuração operacional se ele contiver IDs reais ou valores provisionados.
+
+Se o fast-forward falhar por histórico divergente ou `unrelated histories`, não force merge, rebase, reset ou push. Use o fluxo de overlay protegido de [`docs/ATUALIZACAO.md`](docs/ATUALIZACAO.md), preservando `wrangler.toml` operacional, ou faça handoff manual.
 
 ### 3. Deploy Button (1 clique)
 
@@ -120,6 +124,7 @@ Esse fluxo mantém o `database_id` real apenas em `wrangler.local.toml`, arquivo
 - `wrangler.toml` é template público e não deve conter IDs reais.
 - `wrangler.local.toml`, `.dev.vars`, `.env`, tokens, secrets e `database_id` real não podem ir para o GitHub.
 - Valores reais ficam no dashboard da Cloudflare ou em arquivo local ignorado.
+- Em repositórios operacionais gerados pela Cloudflare, `wrangler.toml` pode conter IDs reais; mantenha esse repositório privado e não substitua o arquivo pelo template do upstream durante atualização.
 
 ---
 

@@ -56,8 +56,9 @@ O produto não mantém:
 
 ## Regra de ouro
 
-- `wrangler.toml` é o template público versionado. Ele existe para código-fonte, CI, Workers Builds e Deploy Button.
-- `wrangler.toml` nunca deve conter `database_id` real, token, secret, variável privada, `.dev.vars` ou dado operacional sensível.
+- No repositório fonte oficial, `wrangler.toml` é o template público versionado. Ele existe para código-fonte, CI, Workers Builds e Deploy Button.
+- No repositório fonte oficial ou em qualquer repositório público, `wrangler.toml` nunca deve conter `database_id` real, token, secret, variável privada, `.dev.vars` ou dado operacional sensível.
+- Em repositórios operacionais gerados pelo Deploy Button ou conectados ao Workers Builds, o `wrangler.toml` local pode ter sido atualizado pela Cloudflare com IDs reais. Nesse contexto, trate o `wrangler.toml` local como configuração operacional protegida e não substitua pelo template do upstream.
 - `wrangler.local.toml` é a configuração privada para deploy manual com valores reais. Ele é ignorado pelo Git e nunca deve ser publicado.
 - `.dev.vars`, `.env`, tokens, chaves, secrets e qualquer valor real de operador nunca podem ir para o GitHub.
 - O Deploy Button pode criar um repositório operacional na conta do usuário e atualizar a configuração Wrangler com IDs reais de recursos provisionados. Se a política for zero IDs reais no GitHub, esse repositório deve ser privado ou o operador deve usar deploy manual com `wrangler.local.toml`.
@@ -79,6 +80,8 @@ Regras obrigatórias:
 - `origin` só deve ser usado para push após confirmação explícita do operador
 - a IA nunca deve trocar, remover ou recriar bindings reais durante atualização
 - a IA nunca deve copiar `wrangler.toml` por cima de `wrangler.local.toml`
+- a IA nunca deve substituir `wrangler.toml` operacional pelo `wrangler.toml` do upstream sem revisão manual
+- se `git merge --ff-only upstream/main` falhar por históricos divergentes ou `unrelated histories`, a IA não deve usar `--allow-unrelated-histories`, `reset --hard`, rebase automático, `git push --force` ou `git push --force-with-lease`
 - se houver conflito em `wrangler.toml`, `wrangler.local.toml`, `.dev.vars`, `.env*`, bindings D1, `database_id`, routes, variables ou secrets, parar e entregar handoff manual
 
 Bindings e configuração operacional protegidos:
@@ -90,6 +93,22 @@ Bindings e configuração operacional protegidos:
 - `.dev.vars` e `.env*`
 - variables e secrets configurados no dashboard da Cloudflare
 - domínio, routes, workers.dev, preview URLs e cron da instância operada
+
+## Classificação obrigatória antes de atualizar
+
+Antes de aplicar qualquer atualização, classifique a instalação:
+
+- `fonte_publica`: checkout do upstream oficial ou fork sem valores reais; `wrangler.toml` contém o placeholder `00000000-0000-0000-0000-000000000000`.
+- `deploy_wrangler_local`: valores reais ficam em `wrangler.local.toml`; `wrangler.toml` deve continuar como template público.
+- `operacional_versionado`: repositório usado por Workers Builds/GitHub ou gerado pelo Deploy Button; `wrangler.toml` pode conter `database_id` real, routes, workers.dev, preview URLs, cron ou outros valores provisionados.
+- `historico_incompativel`: `HEAD` e `upstream/main` não têm ancestral comum ou o fast-forward não é possível.
+
+Regras por classificação:
+
+- em `fonte_publica`, `wrangler.toml` pode acompanhar o upstream porque continua sendo template
+- em `deploy_wrangler_local`, preserve `wrangler.local.toml` e reconcilie mudanças de `wrangler.toml` manualmente quando afetarem deploy
+- em `operacional_versionado`, preserve o `wrangler.toml` local por padrão e aplique mudanças do upstream nele apenas após revisão manual
+- em `historico_incompativel`, não force histórico; use o fluxo de overlay protegido de `docs/ATUALIZACAO.md` ou entregue handoff manual
 
 ## Como interpretar pedidos
 
@@ -201,53 +220,63 @@ Quando o pedido for `Atualizar o Projeto`, a IA deve:
 2. rodar `git branch --show-current`
 3. rodar `git remote -v`
 4. identificar mudanças locais que precisam ser preservadas
-5. preservar explicitamente:
+5. perguntar ou descobrir o método de publicação
+6. classificar a instalação como `fonte_publica`, `deploy_wrangler_local`, `operacional_versionado` ou `historico_incompativel`
+7. preservar explicitamente:
    - `wrangler.local.toml` (pode conter `database_id` real)
    - `.dev.vars` e `.env*` locais
+   - `wrangler.toml` quando for configuração operacional versionada
    - `dist/` gerado localmente, quando o operador depender dele
    - bindings D1, routes, variables, secrets e IDs reais da instância
-6. verificar como o projeto publica
-7. garantir que existe um remoto `upstream` apontando para `https://github.com/vitorgfaustino/lockbrief.git`
-8. se `upstream` não existir, criar:
+8. garantir que existe um remoto `upstream` apontando para `https://github.com/vitorgfaustino/lockbrief.git`
+9. se `upstream` não existir, criar:
 
 ```bash
 git remote add upstream https://github.com/vitorgfaustino/lockbrief.git
 ```
 
-9. se `upstream` existir mas apontar para outro lugar, parar e pedir confirmação antes de alterar o remoto
-10. buscar o upstream oficial:
+10. se `upstream` existir mas apontar para outro lugar, parar e pedir confirmação antes de alterar o remoto
+11. buscar o upstream oficial:
 
 ```bash
 git fetch upstream --tags --prune
 ```
 
-11. revisar quais arquivos mudariam sem expor valores sensíveis:
+12. revisar quais arquivos mudariam sem expor valores sensíveis:
 
 ```bash
 git diff --name-only HEAD..upstream/main
 git log --oneline HEAD..upstream/main
 ```
 
-12. se aparecer arquivo de configuração operacional, revisar com cuidado e não colar no chat qualquer saída que contenha IDs reais, tokens ou secrets
-13. se estiver seguro, aplicar somente fast-forward:
+13. verificar se fast-forward é possível:
+
+```bash
+git merge-base HEAD upstream/main
+git merge-base --is-ancestor HEAD upstream/main
+```
+
+14. se aparecer arquivo de configuração operacional, revisar com cuidado e não colar no chat qualquer saída que contenha IDs reais, tokens ou secrets
+15. se `HEAD` for ancestral de `upstream/main`, não houver mudança local protegida e `wrangler.toml` não for operacional, aplicar somente fast-forward:
 
 ```bash
 git merge --ff-only upstream/main
 ```
 
-14. se o fast-forward falhar, parar e entregar handoff; não usar `reset --hard`, `checkout --`, `clean`, merge com conflito ou rebase automático
-15. rodar `npm install`
-16. rodar `npm run dev-init`
-17. rodar `npm run build`
-18. rodar `npm run typecheck`
-19. rodar `npm test`
-20. aplicar migrations remotas e publicar apenas se o método de deploy permitir
+16. se `git merge-base` não retornar ancestral comum, se `git merge --ff-only` falhar ou se `wrangler.toml` atual for operacional, não forçar histórico; criar branch local de rollback e usar o fluxo de overlay protegido de `docs/ATUALIZACAO.md` ou entregar handoff manual
+17. rodar `npm install`
+18. rodar `npm run dev-init`
+19. rodar `npm run build`
+20. rodar `npm run typecheck`
+21. rodar `npm test`
+22. aplicar migrations remotas e publicar apenas se o método de deploy permitir
 
 Regra específica de configuração:
 
 - deploy manual privado usa `wrangler.local.toml`; a atualização não deve sobrescrever esse arquivo
-- Workers Builds/GitHub e Deploy Button podem ter configuração operacional no painel ou no repositório gerado; a IA não deve trocar bindings, `database_id`, variables ou secrets sem confirmação explícita
-- se a atualização do upstream alterar `wrangler.toml`, tratar como mudança no template público e avaliar manualmente se alguma alteração precisa ser refletida na configuração privada
+- Workers Builds/GitHub e Deploy Button podem ter configuração operacional no painel ou no repositório gerado; a IA não deve trocar bindings, `database_id`, variables, secrets ou `wrangler.toml` operacional sem confirmação explícita
+- se a atualização do upstream alterar `wrangler.toml`, tratar como mudança no template público; em repositório operacional, preservar o arquivo atual e reconciliar manualmente somente as mudanças seguras
+- nunca resolver `unrelated histories` com `--allow-unrelated-histories`, rebase automático, `reset --hard` ou push forçado
 
 ## Modos de publicação
 
@@ -305,6 +334,7 @@ Regra de dados:
 - o repositório fonte deve manter apenas o `wrangler.toml` público com placeholder
 - valores reais devem ficar no dashboard da Cloudflare ou em repositório operacional privado
 - se Cloudflare gerar commit com `database_id` real, não publicar esse repositório se a política for zero IDs no GitHub
+- durante atualização de repositório operacional, preservar o `wrangler.toml` versionado se ele contiver valores provisionados
 
 ### 4. Deploy Button
 
@@ -325,6 +355,7 @@ Regra de dados:
 - o repositório fonte do LockBrief não contém IDs reais
 - o repositório gerado pelo Deploy Button pode passar a conter IDs reais de recursos provisionados
 - se o operador não quer qualquer ID real no GitHub, deve manter o repo gerado privado ou usar deploy manual com `wrangler.local.toml`
+- durante atualização do repo gerado, preservar o `wrangler.toml` provisionado e usar overlay protegido se não houver fast-forward seguro
 
 Após o deploy via botão, se for trabalhar localmente:
 
@@ -348,6 +379,8 @@ A IA deve parar e entregar handoff quando a tarefa depender de:
 - revisão da política de privacidade da instância
 - decisão sobre jurisdição do banco D1
 - decisão sobre deixar privado ou público um repositório operacional com IDs reais
+- reconciliação de `wrangler.toml` operacional com o template do upstream
+- histórico Git divergente, sem ancestral comum ou que exija push forçado para publicar
 
 ## Arquivos canônicos
 
@@ -437,6 +470,8 @@ git remote -v
 git remote get-url upstream
 git fetch upstream --tags --prune
 git diff --name-only HEAD..upstream/main
+git merge-base HEAD upstream/main
+git merge-base --is-ancestor HEAD upstream/main
 git merge --ff-only upstream/main
 npm install
 npm run dev-init
@@ -450,6 +485,8 @@ Se `git remote get-url upstream` falhar porque o remoto não existe, crie antes:
 ```bash
 git remote add upstream https://github.com/vitorgfaustino/lockbrief.git
 ```
+
+Se não houver ancestral comum, se o fast-forward falhar ou se o `wrangler.toml` local for operacional, não force o histórico. Use o fluxo de overlay protegido de `docs/ATUALIZACAO.md` e preserve configuração real.
 
 Deploy CLI manual:
 

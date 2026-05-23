@@ -19,6 +19,7 @@ Este repositorio usa documentacao viva. Qualquer agente que altere codigo, plano
 
 - Nenhum segredo real, token, chave, `database_id` real, valor de `.dev.vars`, arquivo `.env`, arquivo `wrangler.local.toml` ou configuracao operacional privada pode ir para o GitHub.
 - `wrangler.toml` e somente um template publico para o codigo-fonte, CI, Workers Builds e Deploy Button. Ele deve conter apenas nomes publicos, placeholders e configuracoes nao sensiveis.
+- Em repositorios operacionais gerados pelo Deploy Button ou conectados ao Workers Builds, o `wrangler.toml` local pode ter sido atualizado pela Cloudflare com IDs reais. Nesse contexto, trate o `wrangler.toml` local como configuracao operacional protegida e nao substitua pelo template do upstream.
 - Valores reais de deploy manual ficam em `wrangler.local.toml`, que e ignorado pelo Git.
 - Valores reais de deploy via painel ficam no dashboard da Cloudflare, em bindings, variables ou secrets conforme o tipo.
 - Se o Deploy Button criar ou atualizar um repositorio GitHub com IDs reais de recursos provisionados, esse repositorio deve ser tratado como operacional. Se a politica for nao publicar IDs, mantenha esse repositorio privado ou remova os IDs antes de qualquer publicacao.
@@ -31,8 +32,10 @@ Este repositorio usa documentacao viva. Qualquer agente que altere codigo, plano
 - `docs/ATUALIZACAO.md` e o runbook canonico para atualizar instalacoes existentes.
 - Para atualizacoes, trate `https://github.com/vitorgfaustino/lockbrief.git` como upstream oficial.
 - Nao assuma que `origin` aponta para o projeto oficial; ele pode ser fork, repositorio operacional privado, Workers Builds ou repositorio gerado pelo Deploy Button.
-- Preserve `wrangler.local.toml`, `.dev.vars`, `.env*`, bindings D1, `database_id`, variables, secrets, routes e configuracoes reais do dashboard.
+- Preserve `wrangler.local.toml`, `.dev.vars`, `.env*`, bindings D1, `database_id`, variables, secrets, routes, configuracoes reais do dashboard e `wrangler.toml` operacional quando ele contiver IDs reais ou configuracao provisionada.
 - Nao copie `wrangler.toml` por cima de `wrangler.local.toml`.
+- Nao substitua `wrangler.toml` operacional pelo `wrangler.toml` do upstream sem revisao manual do impacto em D1, routes, dominio, cron, workers.dev, preview URLs e observabilidade.
+- Se `git merge --ff-only upstream/main` falhar por historicos divergentes ou `unrelated histories`, nao use `--allow-unrelated-histories`, `reset --hard`, rebase automatico nem push com `--force` ou `--force-with-lease`; siga o fluxo de overlay protegido de `docs/ATUALIZACAO.md` ou entregue handoff manual.
 - Se a atualizacao exigir alterar binding, secret, variable, route, dominio, D1 remoto ou repositorio operacional com IDs reais, pare e entregue handoff manual.
 
 ## Matriz de sincronizacao

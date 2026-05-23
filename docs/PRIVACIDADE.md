@@ -59,6 +59,7 @@
 - O `wrangler.toml` público contém somente placeholder e configuração não sensível.
 - Em deploy manual, o `database_id` real fica em `wrangler.local.toml`, arquivo ignorado pelo Git.
 - Em deploy por Cloudflare, valores reais ficam no dashboard ou no repositório operacional gerado. Se esse repositório contiver IDs reais, ele deve ser tratado como dado operacional do operador.
+- Durante atualização por upstream, `wrangler.toml` operacional com IDs reais deve ser preservado. Não use merge forçado, reset ou push forçado para substituir a configuração operacional pelo template público.
 
 ## LGPD
 
