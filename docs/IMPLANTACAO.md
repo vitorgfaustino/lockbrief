@@ -237,7 +237,7 @@ Compila `src/client/*.ts` em `dist/client.js`, copia CSS para `dist/styles.css` 
 npm test
 ```
 
-Executa 26 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`. Os testes usam D1 isolado e não afetam bancos de desenvolvimento ou produção.
+Executa 28 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`. Os testes usam D1 isolado e não afetam bancos de desenvolvimento ou produção.
 
 ## Checklist de validação pré-release
 
@@ -246,7 +246,7 @@ Executa 26 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`
 - [ ] `wrangler.toml` contém apenas placeholder público no repositório fonte, ou foi preservado como configuração operacional privada.
 - [ ] `npm run typecheck` passa.
 - [ ] `npm run build` passa.
-- [ ] `npm test` passa com 26/26.
+- [ ] `npm test` passa com 28/28.
 - [ ] `npx wrangler deploy --dry-run --outdir /tmp/lockbrief-dry-run` empacota o Worker.
 - [ ] `CHANGELOG.md` e `RELEASE_NOTES.md` estão atualizados.
 - [ ] `AI-START.md`, `docs/ATUALIZACAO.md` e `docs/OPERACAO-IA.md` estão alinhados se houve mudança de atualização, deploy ou operação por IA.

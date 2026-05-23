@@ -90,6 +90,14 @@ describe("LockBrief Worker", () => {
       expect(html).toContain("app-footer");
       expect(html).toContain("Privacidade");
     });
+
+    it("renderiza ano atual no rodape", async () => {
+      const res = await fetchWorker("/");
+      const html = await res.text();
+      const currentYear = new Date().getFullYear();
+      expect(html).toContain(`<span>${currentYear}</span> v`);
+      expect(html).not.toContain("<span>1970</span> v");
+    });
   });
 
   // ── GET /privacidade ──────────────────────────────────────────
@@ -99,6 +107,14 @@ describe("LockBrief Worker", () => {
       expect(res.status).toBe(200);
       const html = await res.text();
       expect(html).toContain("Política de Privacidade");
+    });
+
+    it("renderiza ano atual no rodape", async () => {
+      const res = await fetchWorker("/privacidade");
+      const html = await res.text();
+      const currentYear = new Date().getFullYear();
+      expect(html).toContain(`<span>${currentYear}</span> v`);
+      expect(html).not.toContain("<span>1970</span> v");
     });
   });
 

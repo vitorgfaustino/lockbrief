@@ -9,9 +9,11 @@ import { HTML_HEADERS, CSP_HEADER } from "../lib/headers";
 import pkg from "../../package.json";
 
 const VERSION = pkg.version;
-const CURRENT_YEAR = new Date().getFullYear();
 
-const HTML = `<!DOCTYPE html>
+function renderHtml(): string {
+  const currentYear = new Date().getFullYear();
+
+  return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
@@ -38,7 +40,7 @@ const HTML = `<!DOCTYPE html>
 
   <footer class="app-footer">
     <div class="footer-inner">
-      <span>${CURRENT_YEAR}</span> v${VERSION} ·
+      <span>${currentYear}</span> v${VERSION} ·
       <a href="/privacidade" class="footer-link">Privacidade</a> ·
       <span>Criado por <a href="https://github.com/vitorgfaustino/lockbrief" class="footer-link" target="_blank" rel="noopener">Vitor Faustino</a></span>
     </div>
@@ -47,9 +49,10 @@ const HTML = `<!DOCTYPE html>
   <script src="/client.js" type="module"></script>
 </body>
 </html>`;
+}
 
 export function handleIndex(_request: Request): Response {
-  return new Response(HTML, {
+  return new Response(renderHtml(), {
     status: 200,
     headers: {
       ...HTML_HEADERS,

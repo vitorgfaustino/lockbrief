@@ -8,6 +8,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 
 ## [Não publicado]
 
+### Corrigido
+- Ano do rodapé agora é calculado durante a requisição em `/` e `/privacidade`, evitando que runtimes de Worker com data inicial de módulo em epoch exibam `1970`.
+- Suíte de integração passou a cobrir o ano do rodapé nas páginas públicas, totalizando 28 testes.
+
 ### Documentação
 - Fluxo de atualização por IA agora classifica a instalação antes de aplicar mudanças, distinguindo `wrangler.toml` como template público ou configuração operacional versionada.
 - Runbook de atualização passou a documentar overlay protegido para repositórios com histórico divergente ou `unrelated histories`, sem `--allow-unrelated-histories`, reset, rebase automático ou push forçado.

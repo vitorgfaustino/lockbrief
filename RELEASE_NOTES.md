@@ -51,5 +51,5 @@ Esta release melhora o fluxo de abertura de segredos com uma confirmação obrig
 
 - `npm run typecheck`
 - `npm run build`
-- `npm test` com 26 testes
+- `npm test` com 28 testes
 - `git diff --check`

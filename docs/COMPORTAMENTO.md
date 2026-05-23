@@ -101,6 +101,7 @@
 - Campos, labels e descrições usam contraste suficiente para leitura em fundo escuro sem alterar a paleta visual do projeto.
 - Em mobile, campos de resultado usam tamanho de texto maior, podem quebrar linhas internamente e mantêm o botão de copiar abaixo do valor quando não houver largura suficiente.
 - Em mobile, botões podem quebrar linha internamente e o botão de copiar segredo deixa de sobrepor a área de texto.
+- O rodapé das páginas públicas exibe o ano civil atual calculado pelo Worker durante a requisição e a versão sincronizada com `package.json`, sem depender de script inline no navegador.
 
 ## Estados de erro do servidor
 
