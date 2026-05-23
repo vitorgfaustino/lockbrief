@@ -3,6 +3,8 @@
  * Nunca vaza detalhes do corpo malformado na resposta.
  */
 
+import { JSON_HEADERS } from "./headers";
+
 export function safeParseJSON(raw: string): { ok: true; data: unknown } | { ok: false; error: string } {
   try {
     const data = JSON.parse(raw);
@@ -15,11 +17,6 @@ export function safeParseJSON(raw: string): { ok: true; data: unknown } | { ok: 
 export function jsonResponse(data: unknown, status: number = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-      "Referrer-Policy": "no-referrer",
-      "X-Content-Type-Options": "nosniff",
-    },
+    headers: JSON_HEADERS,
   });
 }

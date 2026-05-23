@@ -1,6 +1,6 @@
 # AI-START
 
-Este arquivo é a entrada única para qualquer IA operar o LockBrief v1.0.0 com segurança.
+Este arquivo é a entrada única para qualquer IA operar o LockBrief v1.1.0 com segurança.
 
 O objetivo dele é permitir que a IA:
 
@@ -25,14 +25,17 @@ Leia nesta ordem antes de agir:
 
 ## Estado atual do produto
 
-LockBrief v1.0.0 é um compartilhador de segredos efêmeros com:
+LockBrief v1.1.0 é um compartilhador de segredos efêmeros com:
 
 - criptografia AES-GCM-256 no navegador (Web Crypto API)
 - derivação de chave com senha adicional via PBKDF2-SHA256 + HKDF-SHA256
 - armazenamento no D1 apenas do envelope criptografado (sem plaintext, chave, IP ou user-agent)
-- consumo transacional com leitura única (`UPDATE ... RETURNING` ou fallback com `consume_token`)
+- confirmação explícita antes de consumir qualquer segredo com `/api/fetch`
+- `/api/info` limitado a metadados mínimos (`oneTime`, `expiresAt`, `requiresPassword`)
+- consumo transacional com leitura única (`DELETE ... RETURNING` ou fallback com `consume_token`)
 - expiração controlada por `expires_at` e limpeza via Cron Trigger a cada 30 minutos
 - abuse controls em memória no escopo do isolate (sem persistência de IP)
+- bloqueio leve de bots, crawlers e previews antes das rotas de aplicação
 - erros públicos sempre genéricos e indistinguíveis
 - interface dark mode com glassmorphism e paleta neon ciano
 - links com fragmento `#` para a chave (nunca enviada ao servidor)
@@ -387,5 +390,5 @@ Se a IA seguir este arquivo corretamente, ela deve conseguir:
 
 ---
 
-Versão 1.0.0
+Versão 1.1.0
 Criado por Vitor Faustino — vitorfaustino.com.br

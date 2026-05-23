@@ -13,11 +13,15 @@ const STORE_WINDOW = 60;     // segundos
 const STORE_GLOBAL_MAX = 300; // circuit breaker por janela
 const FETCH_LIMIT = 60;
 const FETCH_WINDOW = 60;
+const INFO_LIMIT = 60;
+const INFO_WINDOW = 60;
 
 let storeCount = 0;
 let storeResetAt = 0;
 let fetchCount = 0;
 let fetchResetAt = 0;
+let infoCount = 0;
+let infoResetAt = 0;
 
 function now(): number {
   return Math.floor(Date.now() / 1000);
@@ -43,5 +47,16 @@ export function checkFetchAllowed(): boolean {
   }
   if (fetchCount >= FETCH_LIMIT) return false;
   fetchCount++;
+  return true;
+}
+
+export function checkInfoAllowed(): boolean {
+  const t = now();
+  if (t >= infoResetAt) {
+    infoCount = 0;
+    infoResetAt = t + INFO_WINDOW;
+  }
+  if (infoCount >= INFO_LIMIT) return false;
+  infoCount++;
   return true;
 }

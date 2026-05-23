@@ -10,11 +10,13 @@
 | `created_at` | D1 | Até consumo ou expiração | Auditoria técnica interna |
 | `consumed_at` | D1 | Até cleanup | Coordenação de consumo único |
 | `consume_token` | D1 | Efêmero (durante consumo) | Guarda de corrida transacional |
+| `requiresPassword` | Não persistido separadamente | Apenas na resposta de `/api/info` | Indicar se a UI deve preparar campo de senha após confirmação |
+| User-Agent e headers de prefetch | Não persistidos | Apenas durante a requisição | Bloqueio efêmero de bots, crawlers e previews |
 
 ## Dados NÃO coletados
 
 - IP do usuário
-- User-Agent
+- User-Agent persistido
 - Cookies ou tokens de sessão
 - Identificadores de dispositivo
 - Dados de fingerprinting
@@ -31,18 +33,22 @@
 - O Worker nunca recebe plaintext, chave ou senha adicional.
 - A criptografia é feita exclusivamente no navegador do usuário via Web Crypto API.
 - O banco D1 armazena apenas o envelope criptografado e campos estritamente necessários para controle de expiração e consumo.
+- `/api/info` retorna apenas metadados mínimos (`oneTime`, `expiresAt`, `requiresPassword`) e não retorna payload, envelope, chave, senha ou conteúdo.
 - Os abuse controls usam contadores em memória, sem persistência.
+- O bloqueio de bots usa apenas avaliação efêmera de User-Agent e headers de prefetch/preview, sem armazenamento.
 - A limpeza de segredos expirados é automatizada via Cron Trigger.
 
 ## Retenção
 
 - Segredos são removidos do D1 imediatamente após o consumo.
 - Segredos não consumidos são removidos na primeira execução do cleanup após expiração.
+- Sobras criptografadas marcadas como consumidas por fallback são removidas pelo cleanup após margem curta de segurança.
 - Nenhum dado de segredo persiste após o consumo ou expiração.
 
 ## Observabilidade
 
 - A aplicação não registra logs de conteúdo, IDs, payloads ou dados de usuário.
+- Logs de erro do Worker usam mensagens genéricas, sem interpolar erro interno do D1.
 - Para prover a rede e bloquear ataques de negação de serviço (DDoS), nosso provedor de infraestrutura (Cloudflare) coleta e processa transitoriamente o endereço IP na camada de borda (Edge), geralmente por 24 a 72 horas, para fins de telemetria de WAF e faturamento. A nossa aplicação, por sua vez, jamais persiste IPs, user-agents ou dados de sessão em bancos de dados.
 - A observabilidade do Worker (`observability.enabled = true`) está configurada com `head_sampling_rate = 0.1` (10% das requisições). Isso coleta apenas métricas agregadas de latência e erros, sem incluir corpo de requisição, headers ou payloads. Essa configuração é aceitável sob a política de minimização pois não expõe dados de segredo e permite monitoramento operacional básico.
 - Logs operacionais da plataforma Cloudflare (infraestrutura) podem existir conforme a política da Cloudflare, mas não incluem o conteúdo do fragmento de URL (que não é enviado ao servidor) nem o corpo das requisições.

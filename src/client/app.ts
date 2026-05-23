@@ -3,7 +3,7 @@
  * Coordena UI, criptografia e chamadas de API.
  */
 
-import { initUI, showScreen, renderCreateScreen, renderCreatedScreen, renderRevealScreen, showRevealKeyError, renderPasswordPrompt, renderRevealedScreen, renderUnavailableScreen, flashCopyButton } from "./ui";
+import { initUI, showScreen, renderCreateScreen, renderCreatedScreen, renderRevealScreen, renderKeyPrompt, renderPasswordPrompt, renderRevealedScreen, renderUnavailableScreen, flashCopyButton, ProtectionMode } from "./ui";
 import { createEnvelope, openEnvelope, parseFragment, buildLink, base64urlDecode, base64urlEncode, FragmentParts, Envelope } from "./crypto";
 import { getLang, t } from "./i18n";
 
@@ -30,7 +30,7 @@ const API = {
     return data.payload || null;
   },
 
-  async getInfo(idHash: string): Promise<{ oneTime: boolean; expiresAt: number } | null> {
+  async getInfo(idHash: string): Promise<{ oneTime: boolean; expiresAt: number; requiresPassword: boolean } | null> {
     const res = await fetch("/api/info", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -78,8 +78,16 @@ async function main(): Promise<void> {
       secretOneTime = info.oneTime;
       secretExpiresAt = info.expiresAt;
 
-      renderRevealScreen(!parsed.key, info.oneTime, info.expiresAt, {
-        onSubmit: (keyInput) => handleReveal(parsed, keyInput),
+      // Um segredo protegido por senha sempre usa o link completo gerado pelo app.
+      // Se a chave foi removida manualmente do fragmento, nao consumimos a nota.
+      if (info.requiresPassword && !parsed.key) {
+        renderUnavailableScreen();
+        showScreen("unavailable");
+        return;
+      }
+
+      renderRevealScreen(!parsed.key, info.requiresPassword, info.oneTime, info.expiresAt, {
+        onSubmit: () => handleReveal(parsed),
       });
       return;
     }
@@ -87,7 +95,7 @@ async function main(): Promise<void> {
 
   showScreen("create");
   renderCreateScreen({
-    onSubmit: (data) => handleCreate(data.secret, data.ttl, data.password, data.oneTime),
+    onSubmit: (data) => handleCreate(data.secret, data.ttl, data.password, data.oneTime, data.protection),
   });
 }
 
@@ -96,7 +104,8 @@ async function handleCreate(
   secret: string,
   ttl: number,
   password: string,
-  oneTime: boolean
+  oneTime: boolean,
+  protection: ProtectionMode
 ): Promise<void> {
   const key = window.crypto.getRandomValues(new Uint8Array(32));
   const { envelope, idHash, rawIdB64 } = await createEnvelope(
@@ -119,7 +128,7 @@ async function handleCreate(
   const linkFull = buildLink(baseUrl, rawIdB64, keyB64);
   const linkshort = `${baseUrl}#v1.${rawIdB64}`;
 
-  renderCreatedScreen(linkFull, linkshort, keyB64, password, {
+  renderCreatedScreen(linkFull, linkshort, keyB64, password, { ttl, oneTime, protection }, {
     onCopy: (text) => {
       navigator.clipboard.writeText(text).catch(() => {});
     },
@@ -131,13 +140,12 @@ async function handleCreate(
 // Após este ponto, o envelope e a chave ficam em memória (storedEnvelope/storedKeyBytes).
 // Todas as retentativas de senha/chave usam esses dados locais.
 async function handleReveal(
-  fragment: FragmentParts,
-  keyInput: string
+  fragment: FragmentParts
 ): Promise<void> {
   // Se já temos dados armazenados de uma tentativa anterior (ex.: usuário
   // digitou chave errada e está tentando de novo), usa os dados locais.
   if (hasStoredData()) {
-    await tryDecryptWithCurrentKey();
+    await tryDecryptWithStoredData();
     return;
   }
 
@@ -168,10 +176,10 @@ async function handleReveal(
   }
 
   // Valida formato da chave (só para UX — o fetch já consumiu o segredo).
-  const keyStr = fragment.key || keyInput;
+  const keyStr = fragment.key;
   if (!keyStr || keyStr.length !== 43) {
     storeForRetry(envelope, new Uint8Array(32)); // placeholder
-    showRevealKeyError(t("revealKeyError"));
+    renderKeyPrompt((key) => handleKeyAttempt(key), secretOneTime);
     return;
   }
   let keyBytes: Uint8Array;
@@ -179,7 +187,7 @@ async function handleReveal(
     keyBytes = base64urlDecode(keyStr);
   } catch {
     storeForRetry(envelope, new Uint8Array(32)); // placeholder
-    showRevealKeyError(t("revealKeyError"));
+    renderKeyPrompt((key) => handleKeyAttempt(key), secretOneTime, t("revealKeyError"));
     return;
   }
 
@@ -211,21 +219,19 @@ async function tryDecryptWithStoredData(): Promise<void> {
     const secret = await openEnvelope(envelope, keyBytes);
     showRevealedSecret(secret);
   } catch {
-    // Apenas atualiza UI — o botão de retry já está configurado.
-    showRevealKeyError(t("revealKeyError"));
+    renderKeyPrompt((key) => handleKeyAttempt(key), secretOneTime, t("revealKeyError"));
   }
 }
 
 // ── Tentativa com chave digitada pelo usuário ──────────────────
-async function tryDecryptWithCurrentKey(): Promise<void> {
-  const keyInput = (document.getElementById("revealKeyInput") as HTMLInputElement)?.value || "";
+async function handleKeyAttempt(keyInput: string): Promise<void> {
   if (!keyInput || !hasStoredData()) return;
 
   let newKeyBytes: Uint8Array;
   try {
     newKeyBytes = base64urlDecode(keyInput);
   } catch {
-    showRevealKeyError(t("revealKeyError"));
+    renderKeyPrompt((key) => handleKeyAttempt(key), secretOneTime, t("revealKeyError"));
     return;
   }
 

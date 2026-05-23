@@ -19,7 +19,6 @@ import worker from "../src/index";
 
 // ── D1 Migration Setup ──────────────────────────────────────────
 beforeAll(async () => {
-  // Aplica migrations no D1 de teste
   const migrations = [
     `CREATE TABLE IF NOT EXISTS secrets (
       id_hash          TEXT PRIMARY KEY,
@@ -27,19 +26,17 @@ beforeAll(async () => {
       expires_at       INTEGER NOT NULL,
       created_at       INTEGER NOT NULL,
       consumed_at      INTEGER,
-      consume_token    TEXT,
-      one_time         INTEGER NOT NULL DEFAULT 1
+      consume_token    TEXT
     )`,
     `CREATE INDEX IF NOT EXISTS idx_secrets_expires_at ON secrets (expires_at)`,
-    // Add locked_at if migration 0002 was applied
-    `ALTER TABLE secrets ADD COLUMN locked_at INTEGER`,
+    `ALTER TABLE secrets ADD COLUMN one_time INTEGER NOT NULL DEFAULT 1`,
   ];
 
   for (const sql of migrations) {
     try {
       await (env as any).DB.prepare(sql).run();
     } catch {
-      // Coluna ou tabela ja existe — ignorar
+      // Tabela, indice ou coluna ja existe no D1 isolado — ignorar.
     }
   }
 });
@@ -113,6 +110,18 @@ describe("LockBrief Worker", () => {
       const data = await res.json() as any;
       expect(data.status).toBe("ok");
       expect(data.db).toBe("connected");
+    });
+
+    it("inclui headers de seguranca em JSON", async () => {
+      const res = await fetchWorker("/api/health");
+      expect(res.headers.get("Content-Type")).toContain("application/json");
+      expect(res.headers.get("Cache-Control")).toBe("no-store");
+      expect(res.headers.get("Referrer-Policy")).toBe("no-referrer");
+      expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(res.headers.get("Cross-Origin-Resource-Policy")).toBe("same-origin");
+      expect(res.headers.get("Cross-Origin-Opener-Policy")).toBe("same-origin");
+      expect(res.headers.get("Permissions-Policy")).toContain("camera=()");
+      expect(res.headers.get("X-Robots-Tag")).toContain("noindex");
     });
   });
 
@@ -189,6 +198,11 @@ describe("LockBrief Worker", () => {
       expect(res.status).toBe(200);
       const data = await res.json() as any;
       expect(data.payload).toBe(payload);
+
+      const row = await (env as any).DB.prepare(
+        "SELECT id_hash FROM secrets WHERE id_hash = ?1"
+      ).bind(idHash).first();
+      expect(row).toBeNull();
     });
 
     it("retorna 404 para segredo ja consumido", async () => {
@@ -287,8 +301,50 @@ describe("LockBrief Worker", () => {
       const data = await res.json() as any;
       expect(data.oneTime).toBe(true); // default
       expect(typeof data.expiresAt).toBe("number");
+      expect(data.requiresPassword).toBe(false);
 
       // Ainda pode ser consumido
+      const fetchRes = await fetchWorker("/api/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash }),
+      });
+      expect(fetchRes.status).toBe(200);
+    });
+
+    it("retorna requiresPassword=true para envelope com senha sem expor payload", async () => {
+      const idHash = randomIdHash();
+      const payload = JSON.stringify({
+        v: 1,
+        alg: "AES-GCM-256",
+        iv: "abcdefghijklmnop",
+        ciphertext: "encrypted_data_here",
+        kdf: "PBKDF2-SHA256+HKDF-SHA256",
+        salt: "abcdefghijklmnopqrstuv",
+      });
+
+      await fetchWorker("/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash, payload, ttl: 3600 }),
+      });
+
+      const res = await fetchWorker("/api/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash }),
+      });
+
+      expect(res.status).toBe(200);
+      const data = await res.json() as any;
+      expect(data.oneTime).toBe(true);
+      expect(typeof data.expiresAt).toBe("number");
+      expect(data.requiresPassword).toBe(true);
+      expect(data.payload).toBeUndefined();
+      expect(data.kdf).toBeUndefined();
+      expect(data.salt).toBeUndefined();
+      expect(data.ciphertext).toBeUndefined();
+
       const fetchRes = await fetchWorker("/api/fetch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -348,6 +404,59 @@ describe("LockBrief Worker", () => {
         body: "nao e json",
       });
       expect(res.status).toBe(400);
+    });
+  });
+
+  // ── Bots e abuso ──────────────────────────────────────────────
+  describe("Bots, crawlers e rate limit", () => {
+    it("publica robots.txt bloqueando indexacao", async () => {
+      const res = await fetchWorker("/robots.txt", {
+        headers: { "User-Agent": "Googlebot/2.1" },
+      });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("X-Robots-Tag")).toContain("noindex");
+      const body = await res.text();
+      expect(body).toContain("User-agent: *");
+      expect(body).toContain("Disallow: /");
+    });
+
+    it("bloqueia crawlers conhecidos antes das rotas da aplicacao", async () => {
+      const res = await fetchWorker("/", {
+        headers: { "User-Agent": "Googlebot/2.1" },
+      });
+      expect(res.status).toBe(403);
+      expect(res.headers.get("X-Robots-Tag")).toContain("noindex");
+    });
+
+    it("bloqueia bots tambem em rotas JSON", async () => {
+      const res = await fetchWorker("/api/health", {
+        headers: { "User-Agent": "Googlebot/2.1" },
+      });
+      expect(res.status).toBe(403);
+      expect(res.headers.get("Content-Type")).toContain("application/json");
+      expect(res.headers.get("Cross-Origin-Resource-Policy")).toBe("same-origin");
+      const data = await res.json() as any;
+      expect(data.error).toBe("invalid_request");
+    });
+
+    it("aplica rate limit em /api/info", async () => {
+      let sawRateLimit = false;
+
+      for (let i = 0; i < 80; i++) {
+        const res = await fetchWorker("/api/info", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idHash: randomIdHash() }),
+        });
+        if (res.status === 429) {
+          sawRateLimit = true;
+          const data = await res.json() as any;
+          expect(data.error).toBe("invalid_request");
+          break;
+        }
+      }
+
+      expect(sawRateLimit).toBe(true);
     });
   });
 });

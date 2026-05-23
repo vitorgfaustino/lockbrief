@@ -12,6 +12,18 @@ export const HTML_HEADERS = {
   "Cross-Origin-Resource-Policy": "same-origin",
   "Cross-Origin-Opener-Policy": "same-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+  "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
+} as const;
+
+export const JSON_HEADERS = {
+  "Content-Type": "application/json; charset=utf-8",
+  "Cache-Control": "no-store",
+  "Referrer-Policy": "no-referrer",
+  "X-Content-Type-Options": "nosniff",
+  "Cross-Origin-Resource-Policy": "same-origin",
+  "Cross-Origin-Opener-Policy": "same-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+  "X-Robots-Tag": "noindex, nofollow, noarchive, nosnippet",
 } as const;
 
 export const CSP_HEADER =

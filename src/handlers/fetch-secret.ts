@@ -2,7 +2,7 @@
  * POST /api/fetch — Consome segredo.
  *
  * Comportamento condicional baseado em one_time:
- * - one_time = 1 (default): leitura unica — UPDATE + RETURNING + DELETE.
+ * - one_time = 1 (default): leitura unica — DELETE + RETURNING.
  * - one_time = 0: leitura multipla — apenas SELECT, sem consumir.
  *
  * Erro generico em qualquer falha.
@@ -15,6 +15,7 @@ import { badRequest, notAvailable, tooManyRequests } from "../lib/errors";
 import { nowUnixSeconds } from "../lib/timestamps";
 import { checkFetchAllowed } from "../lib/abuse-controls";
 import { ErrorResult } from "../lib/errors";
+import { JSON_HEADERS } from "../lib/headers";
 
 export async function handleFetch(request: Request, env: Env): Promise<Response> {
   if (!checkFetchAllowed()) {
@@ -69,31 +70,24 @@ export async function handleFetch(request: Request, env: Env): Promise<Response>
   return jsonError(notAvailable());
 }
 
-// ── one_time = 1: UPDATE ... RETURNING + DELETE ────────────────
+// ── one_time = 1: DELETE ... RETURNING ─────────────────────────
 async function fetchOneTime(
   env: Env,
   idHash: string,
   now: number
 ): Promise<Response | null> {
-  const consumeToken = generateToken();
-
   const result = await env.DB.prepare(
-    `UPDATE secrets
-     SET consumed_at = ?1, consume_token = ?2
-     WHERE id_hash = ?3
+    `DELETE FROM secrets
+     WHERE id_hash = ?1
        AND consumed_at IS NULL
-       AND expires_at > ?4
+       AND expires_at > ?2
        AND one_time = 1
      RETURNING encrypted_payload`
   )
-    .bind(now, consumeToken, idHash, now)
+    .bind(idHash, now)
     .first<{ encrypted_payload: string }>();
 
   if (!result) return null;
-
-  await env.DB.prepare(
-    `DELETE FROM secrets WHERE id_hash = ?1`
-  ).bind(idHash).run();
 
   return jsonPayload(result.encrypted_payload);
 }
@@ -161,19 +155,13 @@ function generateToken(): string {
 function jsonPayload(payload: string): Response {
   return new Response(JSON.stringify({ payload }), {
     status: 200,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
+    headers: JSON_HEADERS,
   });
 }
 
 function jsonError(err: ErrorResult): Response {
   return new Response(JSON.stringify({ error: err.error }), {
     status: err.status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
+    headers: JSON_HEADERS,
   });
 }

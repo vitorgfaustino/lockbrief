@@ -96,7 +96,7 @@ Regra prática para produção: trate o repositório operacional como privado me
 
 ## Variáveis e secrets
 
-O LockBrief v1.0.0 não exige secrets de runtime.
+O LockBrief v1.1.0 não exige secrets de runtime.
 
 Os limites de payload e TTL estão definidos no código e documentados em `docs/FUNCIONAL.md`. Não há necessidade de publicar `[vars]` reais no GitHub.
 
@@ -137,6 +137,19 @@ O Worker executa limpeza de segredos expirados a cada 30 minutos via Cron Trigge
 crons = ["*/30 * * * *"]
 ```
 
+## Redução de tráfego de bots
+
+O código bloqueia bots, crawlers e previews de links conhecidos assim que a requisição entra no Worker. Esse bloqueio reduz trabalho de aplicação e consultas D1, mas **não impede que a requisição conte como Worker request**.
+
+Para economizar o plano gratuito contra bots, configure controles antes do Worker na conta Cloudflare:
+
+1. Ative recursos gratuitos/inclusos de mitigação de bots disponíveis para a conta.
+2. Crie uma regra de segurança para bloquear User-Agents de crawlers e previews que não precisam acessar a aplicação.
+3. Mantenha Preview URLs desativadas quando não forem necessárias.
+4. Para produção, prefira domínio controlado e evite divulgar rotas `workers.dev` adicionais.
+
+Não use regras que exijam cookies ou fingerprinting próprio da aplicação. O LockBrief não adiciona cookies, analytics, armazenamento local ou identificação de usuário para diferenciar humanos de bots.
+
 ## Build do cliente
 
 ```bash
@@ -151,7 +164,7 @@ Compila `src/client/*.ts` em `dist/client.js`, copia CSS para `dist/styles.css` 
 npm test
 ```
 
-Executa 20 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`. Os testes usam D1 isolado e não afetam bancos de desenvolvimento ou produção.
+Executa 26 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`. Os testes usam D1 isolado e não afetam bancos de desenvolvimento ou produção.
 
 ## Checklist de validação pré-release
 
@@ -160,7 +173,7 @@ Executa 20 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`
 - [ ] `wrangler.toml` contém apenas placeholder público.
 - [ ] `npm run typecheck` passa.
 - [ ] `npm run build` passa.
-- [ ] `npm test` passa com 20/20.
+- [ ] `npm test` passa com 26/26.
 - [ ] `npx wrangler deploy --dry-run --outdir /tmp/lockbrief-dry-run` empacota o Worker.
 - [ ] `CHANGELOG.md` e `RELEASE_NOTES.md` estão atualizados.
 

@@ -53,10 +53,11 @@ K_final = HKDF-SHA256(key || K_pwd, salt="", info="lockbrief:v1:kdf", 256 bits)
 ### Leitura de segredo (leitura unica — one_time = 1)
 ```
 idHash = base64url(SHA-256(rawId do link))
-→ Worker: UPDATE consumed_at + RETURNING encrypted_payload
-→ Worker: DELETE
+→ Worker: DELETE ... RETURNING encrypted_payload
 → Navegador: deriva K_final e descriptografa
 ```
+
+O caminho principal remove e retorna o envelope criptografado em uma única instrução D1. O fallback para runtimes sem `DELETE ... RETURNING` usa `UPDATE` + `consume_token` + `SELECT` + `DELETE`; nesse fallback, uma interrupção extrema entre as etapas pode deixar uma sobra criptografada marcada como consumida até o próximo cleanup.
 
 ### Leitura de segredo (multi-leitura — one_time = 0)
 ```
@@ -69,10 +70,31 @@ idHash = base64url(SHA-256(rawId do link))
 ### `/api/info` — metadados sem consumo
 ```
 idHash = base64url(SHA-256(rawId do link))
-→ Worker: SELECT one_time, expires_at
-→ Navegador: recebe { oneTime, expiresAt } sem consumir o segredo
-→ Este endpoint e usado apenas para exibir a UI correta (avisos/contador)
+→ Worker: SELECT one_time, expires_at, encrypted_payload
+→ Worker: deriva apenas requiresPassword a partir do campo kdf do envelope
+→ Navegador: recebe { oneTime, expiresAt, requiresPassword } sem consumir o segredo
+→ Este endpoint e usado apenas para exibir a UI correta (avisos/contador/pre-requisitos)
 ```
+
+`/api/info` nunca retorna payload, envelope, `kdf`, `salt`, `iv`, `ciphertext`, chave, senha ou plaintext.
+`/api/info` possui rate limit em memória, sem persistir IP ou qualquer identificador de cliente.
+
+## Confirmação antes de consumo
+
+Ao abrir um link válido, o cliente primeiro consulta `/api/info`, que não consome o segredo. A chamada consumidora `/api/fetch` só ocorre quando a pessoa clica em **"Revelar mensagem"**.
+
+Em leitura única (`one_time = 1`), esse clique é o ponto de consumo: o Worker remove o registro ao retornar o envelope criptografado e o navegador faz a validação local de chave ou senha. Se a pessoa fechar a aba depois desse ponto, o segredo pode não ser recuperável, mesmo que ainda falte digitar chave ou senha correta.
+
+## Bloqueio de bots e crawlers
+
+O Worker bloqueia crawlers conhecidos, bots de preview, requisições `HEAD` e sinais explícitos de prefetch/prerender/preview antes das rotas da aplicação.
+
+Esse controle:
+- Reduz consultas ao D1 e trabalho de aplicação.
+- Não persiste User-Agent nem qualquer metadado do cliente.
+- Não substitui proteção na borda da Cloudflare para economia real de Worker requests.
+
+Para reduzir contagem no plano gratuito, o operador deve configurar regras de segurança da Cloudflare antes do Worker.
 
 ## Limites do modelo
 
@@ -84,7 +106,7 @@ idHash = base64url(SHA-256(rawId do link))
 
 4. **Cloudflare como operador**: A Cloudflare opera a infraestrutura. Em caso de comprometimento da plataforma, o envelope criptografado poderia ser acessado, mas não descriptografado sem a chave (que está apenas no fragmento, não enviado ao servidor).
 
-5. **Leitura única não é garantia absoluta**: Duas requisições concorrentes extremamente próximas podem, em teoria, ambas passarem pelo `UPDATE` antes do `DELETE`. O fluxo transacional com `consume_token` reduz este risco a uma janela mínima.
+5. **Leitura única não é garantia absoluta**: O caminho principal usa `DELETE ... RETURNING` para reduzir a janela de corrida. O fallback mantém `consume_token`; em falha extrema do runtime, uma sobra criptografada consumida pode persistir até o cleanup.
 
 ## Cuidados com senha adicional
 
@@ -105,6 +127,8 @@ Nunca é revelado se o segredo:
 - Já foi consumido
 - Teve erro de descriptografia (senha incorreta)
 - Teve colisão de leitura concorrente
+
+Logs operacionais do Worker também não devem incluir payload, IDs, SQL detalhado ou mensagens internas do banco. Erros de banco são registrados com mensagens genéricas.
 
 ## Segurança operacional de configuração
 

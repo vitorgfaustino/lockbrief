@@ -6,8 +6,9 @@
 |---|---|---|---|
 | GET | `/` | Serve HTML da aplicação | 200 |
 | GET | `/privacidade` | Serve política pública de privacidade | 200 |
+| GET | `/robots.txt` | Desencoraja indexação e crawling | 200 |
 | POST | `/api/store` | Armazena envelope criptografado | 201 |
-| POST | `/api/info` | Retorna metadados sem consumir segredo | 200 ou 404 |
+| POST | `/api/info` | Retorna metadados sem consumir segredo | 200, 404 ou 429 |
 | POST | `/api/fetch` | Consome e retorna envelope criptografado | 200 |
 | GET | `/api/health` | Health check (conectividade D1) | 200 ou 503 |
 
@@ -51,17 +52,16 @@
 
 | `one_time` | Comportamento |
 |---|---|
-| `1` (padrão) | Leitura única: `UPDATE ... RETURNING` + `DELETE`. Segredo removido após retorno. |
+| `1` (padrão) | Leitura única: `DELETE ... RETURNING encrypted_payload`. Segredo removido na mesma instrução que retorna o envelope. |
 | `0` | Leitura múltipla: apenas `SELECT`. Segredo permanece até expiração. |
 
 ### Fluxo transacional (one_time = 1)
 1. Validar request e `idHash`
-2. Gerar `consume_token` aleatório (256 bits)
-3. Tentar `UPDATE ... SET consumed_at, consume_token WHERE one_time = 1 ... RETURNING encrypted_payload`
-4. Se sucesso: `DELETE` e retornar payload
-5. Fallback (sem RETURNING): `UPDATE` → `changes()` → `SELECT` pelo token → `DELETE`
-6. Se nenhum resultado: tentar `SELECT WHERE one_time = 0` (multi-leitura)
-7. Se nenhum resultado: erro genérico
+2. Tentar `DELETE FROM secrets WHERE one_time = 1 ... RETURNING encrypted_payload`
+3. Se sucesso: retornar payload já removido do D1
+4. Fallback, se `DELETE ... RETURNING` falhar no runtime: `UPDATE` → `changes()` → `SELECT` pelo token → `DELETE`
+5. Se nenhum resultado: tentar `SELECT WHERE one_time = 0` (multi-leitura)
+6. Se nenhum resultado: erro genérico
 
 ### Responses
 - `200` + `{ "payload": "<string>" }`
@@ -79,8 +79,11 @@ Retorna metadados do segredo **sem consumi-lo**.
 ```
 
 ### Response
-- `200` + `{ "oneTime": true, "expiresAt": 1747861200 }`
+- `200` + `{ "oneTime": true, "expiresAt": 1747861200, "requiresPassword": false }`
 - `404` + `{ "error": "not_available" }`
+- `429` + `{ "error": "invalid_request" }`
+
+`requiresPassword` é derivado exclusivamente do campo `kdf` dentro do envelope criptografado armazenado. A resposta nunca inclui payload, envelope, `kdf`, `salt`, `iv`, `ciphertext`, chave, senha ou plaintext.
 
 ## API: GET /api/health
 
@@ -91,8 +94,8 @@ Retorna metadados do segredo **sem consumi-lo**.
 ## Scheduled: cleanup
 
 - Frequência: a cada 30 minutos
-- Query: `DELETE FROM secrets WHERE expires_at <= ? AND consumed_at IS NULL`
-- Não deleta segredos em processo de consumo (`consumed_at IS NULL`)
+- Query: `DELETE FROM secrets WHERE expires_at <= ? OR (consumed_at IS NOT NULL AND consumed_at <= ?)`
+- Remove segredos expirados e sobras consumidas por fallback após margem curta de segurança.
 
 ## Banco D1
 
@@ -125,20 +128,36 @@ Retorna metadados do segredo **sem consumi-lo**.
 
 - Contadores em memória (escopo global do isolate)
 - `POST /api/store`: 30 requests/min
+- `POST /api/info`: 60 requests/min
 - `POST /api/fetch`: 60 requests/min
 - Sem persistência de IP ou metadados de cliente
+- Bloqueio leve de crawlers e previews conhecidos antes das rotas de aplicação.
+- O bloqueio no Worker reduz D1/CPU, mas requisições que chegam ao Worker ainda contam para o plano da Cloudflare.
 
 ## Headers de segurança
 
 ### HTML (GET /)
-- CSP: `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`
+- CSP: `default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; manifest-src 'self'; worker-src 'none'; base-uri 'self'; form-action 'self'`
 - HSTS: `max-age=31536000; includeSubDomains; preload`
 - X-Frame-Options: `DENY`
 - Referrer-Policy: `no-referrer`
 - Cache-Control: `no-store`
+- Cross-Origin-Resource-Policy: `same-origin`
+- Cross-Origin-Opener-Policy: `same-origin`
+- Permissions-Policy: `camera=(), microphone=(), geolocation=(), payment=()`
+- X-Robots-Tag: `noindex, nofollow, noarchive, nosnippet`
 
 ### JSON (API)
 - Content-Type: `application/json; charset=utf-8`
 - Cache-Control: `no-store`
 - Referrer-Policy: `no-referrer`
 - X-Content-Type-Options: `nosniff`
+- Cross-Origin-Resource-Policy: `same-origin`
+- Cross-Origin-Opener-Policy: `same-origin`
+- Permissions-Policy: `camera=(), microphone=(), geolocation=(), payment=()`
+- X-Robots-Tag: `noindex, nofollow, noarchive, nosnippet`
+
+### Bots e crawlers
+- `GET /robots.txt` retorna `Disallow: /`.
+- User-Agents conhecidos de crawlers e bots de preview recebem `403`.
+- Requisições `HEAD`, `Purpose: prefetch`, `X-Purpose: preview` ou `Sec-Purpose: prefetch/prerender/preview` recebem `403`.

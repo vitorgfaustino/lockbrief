@@ -74,7 +74,7 @@ Este repositorio usa documentacao viva. Qualquer agente que altere codigo, plano
 - Typecheck (`tsc --noEmit`) passa limpo no codigo do Worker.
 - Build do cliente funciona via `npm run build` (alias de `npm run build:client`, esbuild → `dist/client.js`).
 - `npm run dev-init` cria banco D1 local e aplica migrations.
-- `npm test` executa 20 testes de integracao (Vitest + Cloudflare pool workers).
+- `npm test` executa 26 testes de integracao (Vitest + Cloudflare pool workers).
 - CI configurado: typecheck, build, testes, git diff --check.
 - Issue templates e PR template configurados para repositorio publico.
 - Os documentos deste repositorio evoluem junto com o codigo.

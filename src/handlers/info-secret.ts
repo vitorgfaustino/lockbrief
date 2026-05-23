@@ -1,18 +1,24 @@
 /**
  * POST /api/info — Retorna metadados do segredo sem consumi-lo.
  *
- * Retorna { oneTime: boolean, expiresAt: number } ou 404.
- * Nao revela o payload nem consome o registro.
+ * Retorna { oneTime: boolean, expiresAt: number, requiresPassword: boolean } ou 404.
+ * Nao revela payload, envelope, chave, senha nem consome o registro.
  */
 
 import type { Env } from "../router";
 import { safeParseJSON } from "../lib/json";
-import { validateIdHash } from "../lib/validation";
-import { badRequest, notAvailable } from "../lib/errors";
+import { isRecord, validateIdHash } from "../lib/validation";
+import { badRequest, notAvailable, tooManyRequests } from "../lib/errors";
 import { nowUnixSeconds } from "../lib/timestamps";
 import { ErrorResult } from "../lib/errors";
+import { checkInfoAllowed } from "../lib/abuse-controls";
+import { JSON_HEADERS } from "../lib/headers";
 
 export async function handleInfo(request: Request, env: Env): Promise<Response> {
+  if (!checkInfoAllowed()) {
+    return jsonError(tooManyRequests());
+  }
+
   const contentType = request.headers.get("Content-Type") || "";
   if (!contentType.includes("application/json")) {
     return jsonError(badRequest());
@@ -41,34 +47,40 @@ export async function handleInfo(request: Request, env: Env): Promise<Response> 
   const now = nowUnixSeconds();
 
   const row = await env.DB.prepare(
-    `SELECT one_time, expires_at FROM secrets
+    `SELECT one_time, expires_at, encrypted_payload FROM secrets
      WHERE id_hash = ?1 AND expires_at > ?2`
   )
     .bind(idHash, now)
-    .first<{ one_time: number; expires_at: number }>();
+    .first<{ one_time: number; expires_at: number; encrypted_payload: string }>();
 
   if (!row) {
     return jsonError(notAvailable());
   }
 
+  const payloadParsed = safeParseJSON(row.encrypted_payload);
+  if (!payloadParsed.ok || !isRecord(payloadParsed.data)) {
+    return jsonError(notAvailable());
+  }
+
+  const kdf = payloadParsed.data.kdf;
+  if (kdf !== "none" && kdf !== "PBKDF2-SHA256+HKDF-SHA256") {
+    return jsonError(notAvailable());
+  }
+  const requiresPassword = kdf !== "none";
+
   return new Response(JSON.stringify({
     oneTime: row.one_time === 1,
     expiresAt: row.expires_at,
+    requiresPassword,
   }), {
     status: 200,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
+    headers: JSON_HEADERS,
   });
 }
 
 function jsonError(err: ErrorResult): Response {
   return new Response(JSON.stringify({ error: err.error }), {
     status: err.status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
+    headers: JSON_HEADERS,
   });
 }

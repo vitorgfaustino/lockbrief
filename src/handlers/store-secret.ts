@@ -26,6 +26,7 @@ import { badRequest, notAvailable, internalError, tooManyRequests } from "../lib
 import { nowUnixSeconds } from "../lib/timestamps";
 import { checkStoreAllowed } from "../lib/abuse-controls";
 import { ErrorResult } from "../lib/errors";
+import { JSON_HEADERS } from "../lib/headers";
 
 export async function handleStore(request: Request, env: Env): Promise<Response> {
   // Abuse control
@@ -97,10 +98,7 @@ export async function handleStore(request: Request, env: Env): Promise<Response>
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 201,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": "no-store",
-      },
+      headers: JSON_HEADERS,
     });
   } catch (err) {
     // Se for violacao de UNIQUE (duplicata), erro generico
@@ -108,7 +106,7 @@ export async function handleStore(request: Request, env: Env): Promise<Response>
     if (msg.includes("UNIQUE") || msg.includes("SQLITE_CONSTRAINT")) {
       return jsonError(notAvailable());
     }
-    console.error("store error:", msg);
+    console.error("store: db error");
     return jsonError(internalError());
   }
 }
@@ -116,9 +114,6 @@ export async function handleStore(request: Request, env: Env): Promise<Response>
 function jsonError(err: ErrorResult): Response {
   return new Response(JSON.stringify({ error: err.error }), {
     status: err.status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
-    },
+    headers: JSON_HEADERS,
   });
 }

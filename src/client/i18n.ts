@@ -11,6 +11,10 @@ interface Strings {
   createTitle: string;
   createSubtitle: string;
   createCta: string;
+  createSectionMessage: string;
+  createSectionProtection: string;
+  createSectionExpiry: string;
+  createSectionRead: string;
   secretLabel: string;
   secretPlaceholder: string;
   secretHint: string;
@@ -21,10 +25,24 @@ interface Strings {
   passwordLabel: string;
   passwordPlaceholder: string;
   passwordHint: string;
+  protectionKeyLabel: string;
+  protectionPasswordLabel: string;
+  protectionKeyHint: string;
+  protectionPasswordHint: string;
+  generatePasswordBtn: string;
   oneTimeLabel: string;
+  multiReadNotice: string;
   createdTitle: string;
   createdSubtitle: string;
   createdSubtitlePwd: string;
+  resultSummaryTitle: string;
+  summaryExpiresLabel: string;
+  summaryReadLabel: string;
+  summaryProtectionLabel: string;
+  summaryOneTime: string;
+  summaryMultiRead: string;
+  summaryProtectionKey: string;
+  summaryProtectionPassword: string;
   copyBtn: string;
   copiedBtn: string;
   createNewBtn: string;
@@ -34,6 +52,9 @@ interface Strings {
   revealSubtitle: string;
   revealMultiSubtitle: string;
   revealWarning: string;
+  revealRequirementKey: string;
+  revealRequirementPassword: string;
+  revealRequirementReady: string;
   revealKeyLabel: string;
   revealKeyHint: string;
   revealPasswordLabel: string;
@@ -71,6 +92,7 @@ interface Strings {
   revealPwdRetryBtn: string;
   revealPwdError: string;
   revealKeyError: string;
+  revealKeyBtn: string;
   revealKeyRetryBtn: string;
 }
 
@@ -80,6 +102,10 @@ const ptBR: Strings = {
   createTitle: "Crie uma nota segura e temporária.",
   createSubtitle: "O conteúdo é criptografado no navegador antes de sair do seu dispositivo.",
   createCta: "Criar link seguro",
+  createSectionMessage: "Mensagem",
+  createSectionProtection: "Proteção",
+  createSectionExpiry: "Expiração",
+  createSectionRead: "Leitura",
   secretLabel: "Segredo",
   secretPlaceholder: "Digite o segredo que deseja compartilhar...",
   secretHint: "Criptografado localmente antes de enviar.",
@@ -87,26 +113,43 @@ const ptBR: Strings = {
   expires1h: "1 hora",
   expires1d: "1 dia",
   expires1w: "1 semana",
-  passwordLabel: "Senha adicional",
-  passwordPlaceholder: "Opcional",
-  passwordHint: "Opcional. Envie por outro canal. O servidor nunca recebe essa senha.",
+  passwordLabel: "Senha humana",
+  passwordPlaceholder: "Digite sua senha ou gere uma sugestão",
+  passwordHint: "Você pode definir sua própria senha ou usar uma sugestão gerada localmente. Envie por outro canal. O servidor nunca recebe essa senha.",
+  protectionKeyLabel: "Chave automática",
+  protectionPasswordLabel: "Senha humana",
+  protectionKeyHint: "Modo mais forte. A chave de 256 bits fica no link completo ou pode ser enviada separadamente.",
+  protectionPasswordHint: "Use quando a pessoa precisa digitar ou ouvir uma senha.",
+  generatePasswordBtn: "Gerar senha",
   oneTimeLabel: "Destruir após leitura",
+  multiReadNotice: "Com esta opção desativada, a nota será destruída apenas ao fim do prazo de expiração e poderá ser visualizada de forma ilimitada nesse intervalo.",
   createdTitle: "Link criado com sucesso.",
   createdSubtitle: "Escolha o formato mais adequado ao canal onde você vai compartilhar.",
   createdSubtitlePwd: "Envie o link e a senha por canais diferentes sempre que possível.",
+  resultSummaryTitle: "Resumo da configuração",
+  summaryExpiresLabel: "Expiração",
+  summaryReadLabel: "Leitura",
+  summaryProtectionLabel: "Proteção",
+  summaryOneTime: "Remove no primeiro acesso",
+  summaryMultiRead: "Permite acessos até expirar",
+  summaryProtectionKey: "Chave automática",
+  summaryProtectionPassword: "Senha humana",
   copyBtn: "Copiar",
   copiedBtn: "Copiado",
   createNewBtn: "Criar novo segredo",
   backHomeBtn: "Voltar ao início",
   revealTitle: "Este segredo só pode ser revelado uma vez.",
   revealMultiTitle: "Revele o segredo.",
-  revealSubtitle: "Ao continuar, o registro será consumido no servidor antes da descriptografia local.",
+  revealSubtitle: "Confira se você está pronto antes de buscar a mensagem do servidor.",
   revealMultiSubtitle: "Este segredo pode ser acessado novamente até a expiração.",
-  revealWarning: "Continue apenas quando estiver pronto para visualizar. Em leitura única, sair desta tela depois da revelação impede recuperar o conteúdo.",
+  revealWarning: "Ao clicar em Revelar mensagem, a nota será removida do servidor. Se fechar esta aba antes de concluir, talvez não seja possível abrir novamente.",
+  revealRequirementKey: "Tenha a chave do segredo em mãos. Ela será solicitada depois da confirmação.",
+  revealRequirementPassword: "Tenha a senha adicional em mãos. Ela será solicitada depois da confirmação.",
+  revealRequirementReady: "Nenhuma informação adicional será solicitada para este link.",
   revealKeyLabel: "Chave do segredo",
   revealKeyHint: "Cole a chave recebida por outro canal. Ela tem 43 caracteres.",
   revealPasswordLabel: "Senha adicional",
-  revealBtn: "Revelar agora",
+  revealBtn: "Revelar mensagem",
   cancelBtn: "Cancelar",
   revealedTitle: "Segredo revelado.",
   revealedSubtitle: "Este segredo foi removido do servidor. Guarde-o com segurança.",
@@ -125,7 +168,7 @@ const ptBR: Strings = {
   charsCounter: "/ 65536",
   fullLinkLabel: "Link completo",
   fullLinkDesc: "Inclui a chave no fragmento da URL. É prático, mas deve ser usado em canais confiáveis.",
-  fullLinkDescPwd: "Inclui a chave no fragmento da URL. A senha ainda precisa seguir por outro canal.",
+  fullLinkDescPwd: "Link da mensagem protegida por senha. A senha precisa seguir por outro canal.",
   shortLinkLabel: "Link sem chave",
   shortLinkDesc: "Use para canais menos confiáveis. Envie a chave separadamente.",
   keyLabel: "Chave",
@@ -133,14 +176,15 @@ const ptBR: Strings = {
   passwordResultLabel: "Senha",
   passwordResultDesc: "O destinatário precisa desta senha além do link. Envie por outro canal. Ela não foi enviada ao servidor.",
   // Validation warnings
-  revealKeyWarning: "Ao continuar, a nota de leitura única pode ser removida do servidor antes da validação local da chave. Não feche esta tela até concluir.",
-  revealPwdWarning: "A senha é validada somente no navegador. Em leitura única, depois de buscar o envelope, não feche esta tela até concluir.",
+  revealKeyWarning: "A nota já foi buscada do servidor. Em leitura única, não feche esta tela até concluir.",
+  revealPwdWarning: "A senha é validada somente no navegador. Em leitura única, não feche esta tela até concluir.",
   revealPwdLabel: "Senha necessária",
   revealPwdHint: "Este segredo foi protegido com senha adicional.",
   revealPwdBtn: "Descriptografar",
   revealPwdRetryBtn: "Tentar novamente",
   revealPwdError: "Senha incorreta. Tente novamente.",
   revealKeyError: "Chave incorreta. Verifique e tente novamente.",
+  revealKeyBtn: "Descriptografar",
   revealKeyRetryBtn: "Tentar novamente",
 };
 

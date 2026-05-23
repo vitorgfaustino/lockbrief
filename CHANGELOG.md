@@ -6,6 +6,45 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 
 ---
 
+## [1.1.0] — 2026-05-22
+
+### Adicionado
+- Fluxo de revelação consciente: links válidos mostram uma confirmação antes de qualquer chamada consumidora.
+- Botão **"Revelar mensagem"** como ponto explícito de consumo da nota.
+- `POST /api/info` agora retorna também `requiresPassword`, derivado do envelope criptografado, sem retornar payload, KDF, salt, IV, ciphertext, chave, senha ou plaintext.
+- Tela de criação reorganizada em blocos: Mensagem, Proteção, Expiração e Leitura.
+- Modo de proteção por **chave automática** ou **senha humana**, sem fluxo combinado de chave separada + senha.
+- Geração local de senha humana mais fácil de digitar ou ditar, sem envio da senha ao Worker.
+- Resumo local na tela de link criado com expiração, leitura e tipo de proteção, sem segredo, chave, senha, `rawId`, `idHash` ou payload.
+- Aviso ao desativar **"Destruir após leitura"**, indicando que a nota poderá ser visualizada sem limite até expirar.
+- `GET /robots.txt` com `Disallow: /` para desencorajar indexação.
+
+### Alterado
+- Links com chave, links sem chave e links com senha sempre passam pela tela inicial de confirmação antes de `/api/fetch`.
+- Chave e senha só são solicitadas depois do clique em **"Revelar mensagem"**, usando o envelope já mantido em memória.
+- Campo de senha humana deixa claro que o usuário pode definir a própria senha ou usar uma sugestão gerada localmente.
+- Controles de Proteção voltaram ao formato segmentado simples para manter estabilidade visual em mobile.
+- Campos e botões da tela de resultado receberam ajustes de contraste e leitura mobile sem alterar identidade visual, paleta ou fonte.
+- Leitura única agora usa `DELETE ... RETURNING` no caminho principal, removendo e retornando o envelope na mesma instrução D1.
+- Respostas JSON agora usam headers de isolamento e `X-Robots-Tag` consistentes.
+- Cleanup remove sobras criptografadas marcadas como consumidas por fallback.
+
+### Segurança
+- `/api/info` continua não consumindo segredo e agora expõe apenas metadado técnico mínimo para a UX.
+- `/api/info` passou a ter rate limit em memória, sem persistir IP ou identificador de cliente.
+- Bots, crawlers e previews conhecidos são bloqueados antes das rotas de aplicação.
+- `/api/fetch` permanece como único ponto de entrega do envelope criptografado e só é chamado após confirmação explícita.
+- Retry local de chave ou senha incorreta continua sem novo fetch.
+- Logs de erro do Worker não interpolam mais mensagens internas do D1.
+- Nenhum `localStorage`, `sessionStorage`, cookie, analytics, log novo ou coleta de dados pessoais foi adicionado.
+
+### Corrigido
+- Botões de copiar na tela **"Link criado com sucesso."** agora exibem feedback visual consistente com o botão de copiar da mensagem revelada.
+- Setup de testes não cria mais a coluna fantasma `locked_at`; as migrations reais são usadas no D1 isolado.
+- Documentação do CSP foi alinhada ao header real do código.
+- Textos e documentação foram alinhados ao novo fluxo de confirmação e ao metadado `requiresPassword`.
+- Suíte de integração atualizada para 26 testes, cobrindo `requiresPassword`, não consumo por `/api/info`, headers JSON, bloqueio de bots e rate limit.
+
 ## [1.0.0] — 2026-05-22
 
 ### Adicionado

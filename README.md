@@ -87,9 +87,11 @@ Esse fluxo mantém o `database_id` real apenas em `wrangler.local.toml`, arquivo
 
 - **Criptografia local**: AES-GCM-256 via Web Crypto API. O segredo nunca sai do navegador em texto claro.
 - **Senha adicional**: PBKDF2-SHA256 (210k iterações) + HKDF-SHA256. Camada extra de proteção.
+- **Confirmação antes do consumo**: links abertos mostram uma etapa explícita antes de buscar e consumir a mensagem.
 - **Leitura única ou múltipla**: escolha se o segredo é destruído no primeiro acesso.
 - **Expiração**: 1 hora, 1 dia ou 1 semana. Cron de limpeza a cada 30 minutos.
 - **Zero rastreamento**: sem contas, cookies, analytics, IP, user-agent.
+- **Bloqueio de crawlers**: bots e previews conhecidos são rejeitados antes das rotas sensíveis.
 - **Zero custo**: funciona no plano gratuito da Cloudflare (100k requisições/dia, 5 GB D1 storage).
 - **Open source**: AGPL-3.0. Audite, modifique, hospede você mesmo.
 
@@ -107,7 +109,7 @@ O segredo é perdido. Não há recuperação — por design. Compartilhe o link 
 **Sim.** O plano gratuito da Cloudflare oferece 100.000 requisições/dia e 5 GB de armazenamento D1. Mais que suficiente para uso pessoal ou em equipe.
 
 ### Como funciona a leitura única?
-Ao abrir o link, o servidor retorna o envelope criptografado e **remove o registro do banco**. Se alguém tentar abrir o mesmo link depois, receberá "Segredo indisponível". Mesmo que o navegador seja fechado antes de digitar a senha correta — o segredo já foi removido.
+Ao abrir o link, o navegador consulta apenas metadados sem consumir o segredo. O servidor só retorna o envelope criptografado e **remove o registro do banco** depois do clique em "Revelar mensagem". Se alguém tentar abrir o mesmo link depois, receberá "Segredo indisponível". Mesmo que o navegador seja fechado antes de digitar a senha correta — após esse clique, o segredo já foi removido.
 
 ### Posso permitir múltiplas leituras?
 **Sim.** Desative o toggle "Destruir após leitura" na criação. O segredo permanece acessível até expirar (1h/1d/1semana).

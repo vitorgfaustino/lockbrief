@@ -48,7 +48,7 @@ body:
     attributes:
       label: Versão do LockBrief
       description: Versão exibida no rodapé da aplicação.
-      placeholder: v1.0.0
+      placeholder: v1.1.0
   - type: dropdown
     id: environment
     attributes:

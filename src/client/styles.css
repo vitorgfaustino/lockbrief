@@ -65,6 +65,8 @@ html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   color-scheme: dark;
   scroll-behavior: smooth;
 }
@@ -153,7 +155,7 @@ button {
   font-size: 1.375rem;
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
   line-height: 1.2;
   text-decoration: none !important;
 }
@@ -182,7 +184,7 @@ button {
   font-size: 0.75rem;
   color: var(--text-faint);
   font-weight: 400;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   text-transform: uppercase;
   display: none;
 }
@@ -245,20 +247,39 @@ button {
   line-height: 1.25;
   color: var(--text-primary);
   margin-bottom: var(--gap-sm);
-  letter-spacing: -0.025em;
+  letter-spacing: 0;
 }
 
 .card-subtitle {
-  font-size: 0.9375rem;
+  font-size: 1rem;
   color: var(--text-secondary);
   margin-bottom: var(--gap-xl);
   line-height: 1.6;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 /* ── Form Elements ───────────────────────────────────────────── */
 .form-group {
   margin-bottom: var(--gap-xl);
+}
+
+.form-section {
+  padding-bottom: var(--gap-lg);
+  margin-bottom: var(--gap-lg);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.form-section:last-of-type {
+  border-bottom: 0;
+}
+
+.form-section-title {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--gap-md);
 }
 
 .form-group-compact {
@@ -268,37 +289,38 @@ button {
 .form-label {
   display: block;
   font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
   margin-bottom: var(--gap-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .form-textarea,
 .form-input {
   width: 100%;
   padding: 12px 14px;
-  background-color: rgba(0, 0, 0, 0.20);
-  border: 1px solid var(--glass-border);
+  background-color: rgba(3, 7, 12, 0.72);
+  border: 1px solid rgba(203, 213, 225, 0.18);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 0.9375rem;
+  font-size: 1rem;
   line-height: 1.5;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
   resize: vertical;
 }
 
 .form-textarea::placeholder,
 .form-input::placeholder {
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .form-textarea:hover,
 .form-input:hover {
-  border-color: rgba(68, 217, 255, 0.25);
+  background-color: rgba(5, 10, 16, 0.82);
+  border-color: rgba(203, 213, 225, 0.28);
 }
 
 .form-textarea:focus,
@@ -313,11 +335,13 @@ button {
 }
 
 .form-input-readonly {
-  background-color: rgba(0, 0, 0, 0.30);
-  color: var(--text-secondary);
+  background-color: rgba(2, 6, 10, 0.88);
+  border-color: rgba(203, 213, 225, 0.24);
+  color: var(--text-primary);
   cursor: text;
   font-family: var(--font-mono);
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
 }
 
 .textarea-meta {
@@ -337,20 +361,32 @@ button {
 }
 
 .form-hint {
-  font-size: 0.8125rem;
-  color: var(--text-muted);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
   line-height: 1.5;
   margin-top: var(--gap-sm);
 }
 
 .hint-inline {
   margin-top: 6px;
-  font-size: 0.75rem;
-  color: var(--text-faint);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
 }
 
 .hint-warning {
   color: var(--warning);
+}
+
+.password-mode-group {
+  margin-top: var(--gap-md);
+  margin-bottom: 0;
+}
+
+.password-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--gap-sm);
+  align-items: start;
 }
 
 /* ── Form Row (inline expiration + password) ─────────────────── */
@@ -438,7 +474,7 @@ button {
   color: var(--text-primary);
   font-weight: 400;
   cursor: pointer;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .toggle-switch {
@@ -489,6 +525,17 @@ button {
   outline-offset: 2px;
 }
 
+.read-mode-notice {
+  margin-top: var(--gap-sm);
+  padding: 12px 14px;
+  background-color: rgba(68, 217, 255, 0.06);
+  border: 1px solid rgba(68, 217, 255, 0.16);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
 /* ── Buttons ────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
@@ -506,7 +553,7 @@ button {
   min-height: 48px;
   white-space: normal;
   position: relative;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   line-height: 1.25;
   text-align: center;
 }
@@ -583,10 +630,17 @@ button {
   width: 100%;
 }
 
+.btn-inline {
+  min-height: 48px;
+  white-space: nowrap;
+}
+
 .btn-copy {
   flex-shrink: 0;
   padding: 10px 14px;
   border-radius: var(--radius-md);
+  align-self: start;
+  min-width: 112px;
 }
 
 .btn-copy.copied {
@@ -680,12 +734,17 @@ button {
 }
 
 .copy-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
   gap: var(--gap-sm);
 }
 
 .copy-row .form-input {
-  flex: 1;
+  min-width: 0;
+}
+
+.copy-row .form-textarea {
   min-width: 0;
 }
 
@@ -719,10 +778,45 @@ button {
   margin-top: var(--gap-xl);
 }
 
+.result-summary {
+  padding: 14px;
+  margin-bottom: var(--gap-lg);
+  background-color: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(203, 213, 225, 0.14);
+  border-radius: var(--radius-md);
+}
+
+.result-summary-title {
+  font-size: 0.95rem;
+  line-height: 1.4;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.result-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.result-summary-grid dt {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.result-summary-grid dd {
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
 /* ── Link Cards (created screen) ─────────────────────────────── */
 .link-card-item {
-  background-color: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--glass-border);
+  background-color: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(203, 213, 225, 0.14);
   border-radius: var(--radius-md);
   padding: 16px;
   margin-bottom: var(--gap-md);
@@ -730,11 +824,11 @@ button {
 
 .link-card-label {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  color: var(--text-primary);
+  text-transform: none;
+  letter-spacing: 0;
   margin-bottom: 10px;
 }
 
@@ -743,14 +837,29 @@ button {
 }
 
 .link-card-body .form-input-readonly {
-  background-color: rgba(0, 0, 0, 0.30);
-  font-size: 0.8rem;
+  background-color: rgba(2, 6, 10, 0.90);
 }
 
 .link-card-desc {
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-  line-height: 1.5;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.link-output {
+  width: 100%;
+  min-width: 0;
+  min-height: 76px;
+  overflow: auto;
+  resize: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.55;
+}
+
+.link-output-single {
+  min-height: 48px;
 }
 
 /* ── Reveal Screen ──────────────────────────────────────────── */
@@ -771,6 +880,26 @@ button {
 .reveal-warning .icon {
   flex-shrink: 0;
   margin-top: 1px;
+}
+
+.reveal-requirement {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background-color: rgba(68, 217, 255, 0.06);
+  border: 1px solid rgba(68, 217, 255, 0.15);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  margin-bottom: var(--gap-xl);
+}
+
+.reveal-requirement .icon {
+  color: var(--neon);
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
 /* ── Validation Warning (chave/senha incorrectas) ──────────────── */
@@ -933,7 +1062,7 @@ button {
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.13em;
+  letter-spacing: 0;
   margin-bottom: 12px;
 }
 
@@ -993,7 +1122,7 @@ button {
   color: var(--text-primary);
   margin-bottom: var(--gap-lg);
   line-height: 1.3;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .info-list {
@@ -1056,7 +1185,7 @@ button {
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 2px;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
 }
 
 .info-item p {
@@ -1077,7 +1206,7 @@ button {
   font-weight: 500;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.15em;
+  letter-spacing: 0;
   margin-bottom: var(--gap-md);
 }
 
@@ -1137,7 +1266,7 @@ button {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   text-transform: uppercase;
   color: var(--neon);
 }
@@ -1145,7 +1274,7 @@ button {
 .privacy-title {
   font-size: clamp(2rem, 4vw, 3rem);
   line-height: 1.08;
-  letter-spacing: -0.05em;
+  letter-spacing: 0;
   color: var(--text-primary);
 }
 
@@ -1189,7 +1318,7 @@ button {
   font-family: var(--font-mono);
   font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   text-transform: uppercase;
   border: 1px solid transparent;
 }
@@ -1221,7 +1350,7 @@ button {
 .privacy-section-title {
   font-size: 1.45rem;
   line-height: 1.25;
-  letter-spacing: -0.03em;
+  letter-spacing: 0;
   color: var(--text-primary);
 }
 
@@ -1333,7 +1462,7 @@ button {
   font-family: var(--font-mono);
   font-size: 0.75rem;
   color: var(--text-faint);
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
 }
 
 .footer-link {
@@ -1436,16 +1565,54 @@ button {
   }
 
   .card-title {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
+    line-height: 1.3;
+  }
+
+  .card-subtitle {
+    font-size: 1rem;
+  }
+
+  .form-label {
+    font-size: 0.875rem;
+  }
+
+  .form-textarea,
+  .form-input {
+    padding: 13px 14px;
+    font-size: 1rem;
+  }
+
+  .password-input-row,
+  .result-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .btn-inline {
+    width: 100%;
   }
 
   .copy-row {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .btn-copy {
     width: 100%;
     justify-content: center;
+    min-width: 0;
+  }
+
+  .link-card-item {
+    padding: 14px;
+  }
+
+  .link-output {
+    min-height: 92px;
+    font-size: 1rem;
+  }
+
+  .link-output-single {
+    min-height: 48px;
   }
 
   .unavailable-header {

@@ -6,6 +6,7 @@
 import { t } from "./i18n";
 
 type Screen = "create" | "created" | "reveal" | "revealed" | "unavailable";
+export type ProtectionMode = "key" | "password";
 
 const screens: Record<Screen, HTMLElement | null> = {
   create: null,
@@ -157,6 +158,7 @@ export interface CreateScreenCallbacks {
     ttl: number;
     password: string;
     oneTime: boolean;
+    protection: ProtectionMode;
   }) => void;
 }
 
@@ -167,32 +169,49 @@ export function renderCreateScreen(callbacks: CreateScreenCallbacks): void {
       <h1 class="card-title">${t("createTitle")}</h1>
       <p class="card-subtitle">${t("createSubtitle")}</p>
       <form id="createForm" novalidate>
-        <div class="form-group">
-          <label for="secretInput" class="form-label">${t("secretLabel")}</label>
-          <textarea id="secretInput" class="form-textarea" rows="6" maxlength="65536"
-            placeholder="${t("secretPlaceholder")}" translate="no" spellcheck="false" autocomplete="off"></textarea>
-          <div class="textarea-meta">
-            <span id="charCount" class="char-count">0 ${t("charsCounter")}</span>
-            <span class="form-hint">${t("secretHint")}</span>
+        <div class="form-section">
+          <h2 class="form-section-title">${t("createSectionMessage")}</h2>
+          <div class="form-group">
+            <label for="secretInput" class="form-label">${t("secretLabel")}</label>
+            <textarea id="secretInput" class="form-textarea" rows="6" maxlength="65536"
+              placeholder="${t("secretPlaceholder")}" translate="no" spellcheck="false" autocomplete="off"></textarea>
+            <div class="textarea-meta">
+              <span id="charCount" class="char-count">0 ${t("charsCounter")}</span>
+              <span class="form-hint">${t("secretHint")}</span>
+            </div>
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-row-item">
-            <label class="form-label">${t("expiresLabel")}</label>
-            <div class="segmented-control" role="radiogroup" id="ttlControl">
-              <button type="button" class="segment-btn active" data-value="3600" role="radio" aria-checked="true">${t("expires1h")}</button>
-              <button type="button" class="segment-btn" data-value="86400" role="radio" aria-checked="false">${t("expires1d")}</button>
-              <button type="button" class="segment-btn" data-value="604800" role="radio" aria-checked="false">${t("expires1w")}</button>
-            </div>
-            <input type="hidden" id="ttlValue" value="3600">
+
+        <div class="form-section">
+          <h2 class="form-section-title">${t("createSectionProtection")}</h2>
+          <div class="segmented-control protection-control" role="radiogroup" id="protectionControl">
+            <button type="button" class="segment-btn active" data-value="key" role="radio" aria-checked="true">${t("protectionKeyLabel")}</button>
+            <button type="button" class="segment-btn" data-value="password" role="radio" aria-checked="false">${t("protectionPasswordLabel")}</button>
           </div>
-          <div class="form-row-item">
+          <input type="hidden" id="protectionValue" value="key">
+          <p class="form-hint" id="protectionHint">${t("protectionKeyHint")}</p>
+          <div class="form-group password-mode-group" id="passwordModeGroup" hidden>
             <label for="passwordInput" class="form-label">${t("passwordLabel")}</label>
-            <input type="password" id="passwordInput" class="form-input" placeholder="${t("passwordPlaceholder")}" autocomplete="off">
+            <div class="password-input-row">
+              <input type="text" id="passwordInput" class="form-input" placeholder="${t("passwordPlaceholder")}" autocomplete="off" translate="no" spellcheck="false">
+              <button type="button" class="btn btn-secondary btn-inline" id="generatePasswordBtn">${t("generatePasswordBtn")}</button>
+            </div>
             <p class="form-hint hint-inline">${t("passwordHint")}</p>
           </div>
         </div>
-        <div class="form-group form-group-compact">
+
+        <div class="form-section">
+          <h2 class="form-section-title">${t("createSectionExpiry")}</h2>
+          <div class="segmented-control" role="radiogroup" id="ttlControl">
+            <button type="button" class="segment-btn active" data-value="3600" role="radio" aria-checked="true">${t("expires1h")}</button>
+            <button type="button" class="segment-btn" data-value="86400" role="radio" aria-checked="false">${t("expires1d")}</button>
+            <button type="button" class="segment-btn" data-value="604800" role="radio" aria-checked="false">${t("expires1w")}</button>
+          </div>
+          <input type="hidden" id="ttlValue" value="3600">
+        </div>
+
+        <div class="form-section">
+          <h2 class="form-section-title">${t("createSectionRead")}</h2>
           <div class="toggle-row">
             <label class="toggle-label">${t("oneTimeLabel")}</label>
             <button type="button" class="toggle-switch" id="oneTimeToggle" role="switch" aria-checked="true">
@@ -200,6 +219,7 @@ export function renderCreateScreen(callbacks: CreateScreenCallbacks): void {
             </button>
           </div>
           <input type="hidden" id="oneTimeValue" value="true">
+          <p class="read-mode-notice" id="multiReadNotice" hidden>${t("multiReadNotice")}</p>
         </div>
         <button type="submit" class="btn btn-primary btn-full" id="createBtn">
           ${icon("lock")}
@@ -226,6 +246,12 @@ function wireCreateEvents(callbacks: CreateScreenCallbacks): void {
   const oneTimeToggle = document.getElementById("oneTimeToggle") as HTMLButtonElement;
   const oneTimeValue = document.getElementById("oneTimeValue") as HTMLInputElement;
   const ttlValue = document.getElementById("ttlValue") as HTMLInputElement;
+  const protectionValue = document.getElementById("protectionValue") as HTMLInputElement;
+  const protectionHint = document.getElementById("protectionHint")!;
+  const multiReadNotice = document.getElementById("multiReadNotice")!;
+  const passwordGroup = document.getElementById("passwordModeGroup")!;
+  const passwordInput = document.getElementById("passwordInput") as HTMLInputElement;
+  const generatePasswordBtn = document.getElementById("generatePasswordBtn") as HTMLButtonElement;
 
   // Char counter
   secretInput.addEventListener("input", () => {
@@ -233,8 +259,24 @@ function wireCreateEvents(callbacks: CreateScreenCallbacks): void {
     charCount.textContent = `${len.toLocaleString("pt-BR")} ${t("charsCounter")}`;
   });
 
-  // Segmented controls
-  document.querySelectorAll(".segmented-control").forEach(container => {
+  wireSegmentedControl(document.getElementById("ttlControl")!, ttlValue);
+  wireSegmentedControl(document.getElementById("protectionControl")!, protectionValue, (value) => {
+    const mode = value as ProtectionMode;
+    const passwordMode = mode === "password";
+    passwordGroup.hidden = !passwordMode;
+    protectionHint.textContent = passwordMode ? t("protectionPasswordHint") : t("protectionKeyHint");
+    if (passwordMode && !passwordInput.value) {
+      passwordInput.value = generateHumanPassword();
+    }
+  });
+
+  generatePasswordBtn.addEventListener("click", () => {
+    passwordInput.value = generateHumanPassword();
+    passwordInput.focus();
+    passwordInput.select();
+  });
+
+  function wireSegmentedControl(container: HTMLElement, hiddenInput: HTMLInputElement, onChange?: (value: string) => void): void {
     container.querySelectorAll(".segment-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         container.querySelectorAll(".segment-btn").forEach(b => {
@@ -243,17 +285,19 @@ function wireCreateEvents(callbacks: CreateScreenCallbacks): void {
         });
         btn.classList.add("active");
         btn.setAttribute("aria-checked", "true");
-        const hiddenInput = container.parentElement?.querySelector("input[type=hidden]") as HTMLInputElement;
-        if (hiddenInput) hiddenInput.value = (btn as HTMLButtonElement).dataset.value!;
+        const value = (btn as HTMLButtonElement).dataset.value!;
+        hiddenInput.value = value;
+        if (onChange) onChange(value);
       });
     });
-  });
+  }
 
   // One-time toggle
   oneTimeToggle.addEventListener("click", () => {
     const checked = oneTimeToggle.getAttribute("aria-checked") === "true";
     oneTimeToggle.setAttribute("aria-checked", (!checked).toString());
     oneTimeValue.value = (!checked).toString();
+    multiReadNotice.hidden = oneTimeValue.value === "true";
   });
 
   // Submit
@@ -266,11 +310,17 @@ function wireCreateEvents(callbacks: CreateScreenCallbacks): void {
     createBtn.disabled = true;
     createBtn.querySelector(".btn-spinner")!.hidden = false;
 
+    const protection = protectionValue.value as ProtectionMode;
+    if (protection === "password" && !passwordInput.value.trim()) {
+      passwordInput.value = generateHumanPassword();
+    }
+
     await callbacks.onSubmit({
       secret,
       ttl: parseInt(ttlValue.value, 10),
-      password: (document.getElementById("passwordInput") as HTMLInputElement).value,
+      password: protection === "password" ? passwordInput.value.trim() : "",
       oneTime: oneTimeValue.value === "true",
+      protection,
     });
 
     createBtn.classList.remove("is-loading");
@@ -289,16 +339,19 @@ export function renderCreatedScreen(
   linkshort: string,
   key: string,
   password: string,
+  config: { ttl: number; oneTime: boolean; protection: ProtectionMode },
   callbacks: CreatedScreenCallbacks
 ): void {
   const el = screens.created!;
   const hasPassword = password.length > 0;
+  const summary = resultSummary(config);
 
   if (hasPassword) {
     el.innerHTML = `
       <div class="card">
         <h1 class="card-title">${t("createdTitle")}</h1>
         <p class="card-subtitle">${t("createdSubtitlePwd")}</p>
+        ${summary}
         ${linkCard(linkFull, t("fullLinkLabel"), t("fullLinkDescPwd"), "linkCopy", "linkInput")}
         ${linkCard(password, t("passwordResultLabel"), t("passwordResultDesc"), "pwdCopy", "pwdInput")}
         <div class="result-actions">
@@ -310,6 +363,7 @@ export function renderCreatedScreen(
       <div class="card">
         <h1 class="card-title">${t("createdTitle")}</h1>
         <p class="card-subtitle">${t("createdSubtitle")}</p>
+        ${summary}
         ${linkCard(linkFull, t("fullLinkLabel"), t("fullLinkDesc"), "fullCopy", "fullInput")}
         ${linkCard(linkshort, t("shortLinkLabel"), t("shortLinkDesc"), "shortCopy", "shortInput")}
         ${linkCard(key, t("keyLabel"), t("keyDesc"), "keyCopy", "keyInput")}
@@ -327,16 +381,51 @@ export function renderCreatedScreen(
   setCopyHandler("pwdCopy", "pwdInput", callbacks);
 }
 
+function resultSummary(config: { ttl: number; oneTime: boolean; protection: ProtectionMode }): string {
+  return `
+    <div class="result-summary">
+      <h2 class="result-summary-title">${t("resultSummaryTitle")}</h2>
+      <dl class="result-summary-grid">
+        <div>
+          <dt>${t("summaryExpiresLabel")}</dt>
+          <dd>${ttlLabel(config.ttl)}</dd>
+        </div>
+        <div>
+          <dt>${t("summaryReadLabel")}</dt>
+          <dd>${config.oneTime ? t("summaryOneTime") : t("summaryMultiRead")}</dd>
+        </div>
+        <div>
+          <dt>${t("summaryProtectionLabel")}</dt>
+          <dd>${config.protection === "password" ? t("summaryProtectionPassword") : t("summaryProtectionKey")}</dd>
+        </div>
+      </dl>
+    </div>`;
+}
+
+function ttlLabel(ttl: number): string {
+  if (ttl === 3600) return t("expires1h");
+  if (ttl === 86400) return t("expires1d");
+  if (ttl === 604800) return t("expires1w");
+  return `${ttl}s`;
+}
+
 function linkCard(value: string, label: string, desc: string, copyId: string, inputId: string): string {
+  const escapedValue = escapeHtml(value);
+  const escapedLabel = escapeHtml(label);
+  const multiline = value.length > 40;
+  const valueField = multiline
+    ? `<textarea id="${inputId}" class="form-textarea form-input-readonly link-output" readonly rows="3" aria-label="${escapedLabel}" translate="no" spellcheck="false">${escapedValue}</textarea>`
+    : `<input type="text" id="${inputId}" class="form-input form-input-readonly link-output link-output-single" readonly value="${escapedValue}" aria-label="${escapedLabel}" translate="no" spellcheck="false">`;
+
   return `
     <div class="link-card-item">
       <div class="link-card-header">
-        <h3 class="link-card-label">${escapeHtml(label)}</h3>
+        <h3 class="link-card-label">${escapedLabel}</h3>
       </div>
       <div class="link-card-body">
         <div class="copy-row">
-          <input type="text" id="${inputId}" class="form-input form-input-readonly" readonly value="${escapeHtml(value)}" aria-label="${escapeHtml(label)}">
-          <button type="button" class="btn btn-ghost btn-copy" id="${copyId}" aria-label="Copiar ${escapeHtml(label)}">
+          ${valueField}
+          <button type="button" class="btn btn-ghost btn-copy" id="${copyId}" aria-label="Copiar ${escapedLabel}">
             ${icon("copy")}
             <span class="copy-label">${t("copyBtn")}</span>
           </button>
@@ -350,26 +439,34 @@ function setCopyHandler(btnId: string, inputId: string, callbacks: CreatedScreen
   const btn = document.getElementById(btnId);
   if (!btn) return;
   btn.addEventListener("click", () => {
-    const input = document.getElementById(inputId) as HTMLInputElement;
-    if (input) {
-      copyToClipboard(input.value, callbacks.onCopy);
+    const field = document.getElementById(inputId) as HTMLInputElement | HTMLTextAreaElement | null;
+    if (field) {
+      copyToClipboard(field.value, callbacks.onCopy);
+      flashCopyButton(btn);
     }
   });
 }
 
 // ── Reveal Screen ──────────────────────────────────────────────
 export interface RevealScreenCallbacks {
-  onSubmit: (keyInput: string) => void;
+  onSubmit: () => void;
 }
 
 export function renderRevealScreen(
   needsKey: boolean,
+  requiresPassword: boolean,
   oneTime: boolean,
   expiresAt: number,
   callbacks: RevealScreenCallbacks
 ): void {
   const el = screens.reveal!;
   const countdownHtml = oneTime ? "" : buildCountdown(expiresAt);
+  const requirement = requiresPassword
+    ? t("revealRequirementPassword")
+    : needsKey
+      ? t("revealRequirementKey")
+      : t("revealRequirementReady");
+
   el.innerHTML = `
     <div class="card">
       <h1 class="card-title">${oneTime ? t("revealTitle") : t("revealMultiTitle")}</h1>
@@ -383,7 +480,11 @@ export function renderRevealScreen(
         ${icon("clock", "icon")}
         <span>${countdownHtml}</span>
       </div>`}
-      <div id="revealKeyGroup" ${needsKey ? "" : "hidden"}>
+      <div class="reveal-requirement">
+        ${icon(requiresPassword ? "lock" : needsKey ? "key" : "check", "icon")}
+        <span>${requirement}</span>
+      </div>
+      <div id="revealKeyGroup" hidden>
         <div class="form-group">
           <label for="revealKeyInput" class="form-label">${t("revealKeyLabel")}</label>
           <input type="text" id="revealKeyInput" class="form-input" placeholder="Cole a chave recebida por outro canal" autocomplete="off">
@@ -422,12 +523,54 @@ function wireRevealButton(callbacks: RevealScreenCallbacks): void {
     btn.classList.add("is-loading");
     btn.disabled = true;
     btn.querySelector(".btn-spinner")!.hidden = false;
-    const keyInput = (document.getElementById("revealKeyInput") as HTMLInputElement)?.value || "";
-    await callbacks.onSubmit(keyInput);
+    await callbacks.onSubmit();
     btn.classList.remove("is-loading");
     btn.disabled = false;
     btn.querySelector(".btn-spinner")!.hidden = true;
   });
+}
+
+export function renderKeyPrompt(onSubmit: (keyInput: string) => void, oneTime: boolean, errorMessage?: string): void {
+  const keyGroup = document.getElementById("revealKeyGroup");
+  if (!keyGroup) return;
+  const btn = document.getElementById("revealBtn");
+  if (btn) btn.hidden = true;
+
+  keyGroup.hidden = false;
+  keyGroup.innerHTML = `
+    <div class="form-group animate-fade-in">
+      <label for="revealKeyInput" class="form-label">${t("revealKeyLabel")}</label>
+      <input type="text" id="revealKeyInput" class="form-input ${errorMessage ? 'input-error' : ''}" placeholder="Cole a chave recebida por outro canal" autocomplete="off" translate="no" spellcheck="false">
+      <p class="form-hint">${t("revealKeyHint")}</p>
+      ${oneTime ? `
+      <div class="validation-warning">
+        ${icon("triangle", "icon")}
+        <span>${t("revealKeyWarning")}</span>
+      </div>` : ""}
+      ${errorMessage ? `<div class="reveal-error">${escapeHtml(errorMessage)}</div>` : ""}
+      <button type="button" class="btn ${errorMessage ? 'btn-destructive' : 'btn-primary'} btn-full mt-sm" id="retryRevealBtn">
+        ${icon(errorMessage ? "refresh" : "key")}
+        <span class="btn-text">${errorMessage ? t("revealKeyRetryBtn") : t("revealKeyBtn")}</span>
+        <span class="btn-spinner" hidden>
+          <svg class="spinner" viewBox="0 0 24 24" width="18" height="18"><circle class="spinner-track" cx="12" cy="12" r="10" fill="none" stroke-width="2.5"/><circle class="spinner-head" cx="12" cy="12" r="10" fill="none" stroke-width="2.5"/></svg>
+        </span>
+      </button>
+    </div>`;
+
+  document.getElementById("retryRevealBtn")!.addEventListener("click", async () => {
+    const retryBtn = document.getElementById("retryRevealBtn") as HTMLButtonElement;
+    retryBtn.classList.add("is-loading");
+    retryBtn.disabled = true;
+    retryBtn.querySelector(".btn-spinner")!.hidden = false;
+    const keyInput = (document.getElementById("revealKeyInput") as HTMLInputElement).value;
+    await onSubmit(keyInput);
+    retryBtn.classList.remove("is-loading");
+    retryBtn.disabled = false;
+    retryBtn.querySelector(".btn-spinner")!.hidden = true;
+  });
+
+  const keyInput = document.getElementById("revealKeyInput") as HTMLInputElement;
+  keyInput.focus();
 }
 
 export function showRevealKeyError(message: string): void {
@@ -621,6 +764,39 @@ function copyToClipboard(text: string, onCopy: (text: string) => void): void {
   onCopy(text);
 }
 
+const HUMAN_PASSWORD_WORDS = [
+  "alto", "arco", "azul", "barco", "bravo", "brisa", "campo", "canto",
+  "carta", "cedro", "claro", "cobre", "coral", "delta", "duna", "eco",
+  "faro", "firme", "flora", "fonte", "frase", "gelo", "grade", "honra",
+  "ilha", "justo", "lago", "lima", "linha", "livro", "luz", "mapa",
+  "marco", "medio", "metal", "metro", "monte", "mural", "nobre", "norte",
+  "nuvem", "oliva", "onda", "ordem", "ouro", "pacto", "pedra", "plano",
+  "ponte", "porto", "prata", "ponto", "raio", "ramo", "rastro", "rede",
+  "rio", "rocha", "rota", "sinal", "solar", "sopro", "terra", "traco",
+  "trilha", "uniao", "vale", "vento", "verde", "vila", "vivo", "zona",
+] as const;
+
+function generateHumanPassword(): string {
+  const words: string[] = [];
+  for (let i = 0; i < 5; i++) {
+    words.push(HUMAN_PASSWORD_WORDS[randomIndex(HUMAN_PASSWORD_WORDS.length)]);
+  }
+  const suffix = randomIndex(100).toString().padStart(2, "0");
+  return `${words.join("-")}-${suffix}`;
+}
+
+function randomIndex(maxExclusive: number): number {
+  const range = 0x100000000;
+  const limit = range - (range % maxExclusive);
+  const value = new Uint32Array(1);
+
+  do {
+    crypto.getRandomValues(value);
+  } while (value[0] >= limit);
+
+  return value[0] % maxExclusive;
+}
+
 export function flashCopyButton(btn: HTMLElement): void {
   btn.classList.add("copied");
   const label = btn.querySelector(".copy-label");
@@ -632,6 +808,7 @@ export function flashCopyButton(btn: HTMLElement): void {
 }
 
 function escapeHtml(str: string): string {
+  // Seguro para conteudo de elemento. Nao usar para montar atributos dinamicos.
   const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
