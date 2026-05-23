@@ -31,12 +31,16 @@ Este repositorio usa documentacao viva. Qualquer agente que altere codigo, plano
 - `docs/OPERACAO-IA.md` define intencoes aceitas, limites de automacao e checkpoints manuais.
 - `docs/ATUALIZACAO.md` e o runbook canonico para atualizar instalacoes existentes.
 - Para atualizacoes, trate `https://github.com/vitorgfaustino/lockbrief.git` como upstream oficial.
+- O upstream oficial e somente fonte de leitura para atualizacao. Nao ofereca abrir PR, branch ou push para `https://github.com/vitorgfaustino/lockbrief.git`; PRs externos nao sao aceitos neste projeto.
 - Nao assuma que `origin` aponta para o projeto oficial; ele pode ser fork, repositorio operacional privado, Workers Builds ou repositorio gerado pelo Deploy Button.
 - Preserve `wrangler.local.toml`, `.dev.vars`, `.env*`, bindings D1, `database_id`, variables, secrets, routes, configuracoes reais do dashboard e `wrangler.toml` operacional quando ele contiver IDs reais ou configuracao provisionada.
 - Nao copie `wrangler.toml` por cima de `wrangler.local.toml`.
 - Nao substitua `wrangler.toml` operacional pelo `wrangler.toml` do upstream sem revisao manual do impacto em D1, routes, dominio, cron, workers.dev, preview URLs e observabilidade.
 - Se `git merge --ff-only upstream/main` falhar por historicos divergentes ou `unrelated histories`, nao use `--allow-unrelated-histories`, `reset --hard`, rebase automatico nem push com `--force` ou `--force-with-lease`; siga o fluxo de overlay protegido de `docs/ATUALIZACAO.md` ou entregue handoff manual.
 - Se a atualizacao exigir alterar binding, secret, variable, route, dominio, D1 remoto ou repositorio operacional com IDs reais, pare e entregue handoff manual.
+- A intencao `Atualizar o Projeto` autoriza aplicar passos locais seguros e reversiveis, incluindo backup local e overlay protegido quando nao houver conflito conceitual; nao interrompa para escolhas tecnicas que possam ser inferidas com seguranca.
+- Nao crie branch de trabalho `update/...` para validar por padrao. Se precisar de rollback antes de overlay, crie apenas uma branch local `backup/...` apontando para o estado anterior e continue na branch atual.
+- Ao terminar uma atualizacao, explique em linguagem simples o que foi preservado, quais validacoes passaram, se existe commit pendente, se houve push/deploy e qual e o proximo passo do operador.
 
 ## Matriz de sincronizacao
 
@@ -94,9 +98,9 @@ Este repositorio usa documentacao viva. Qualquer agente que altere codigo, plano
 
 - O sistema real esta implementado em `src/` (Worker + D1 + cliente TypeScript).
 - Typecheck (`tsc --noEmit`) passa limpo no codigo do Worker.
-- Build do cliente funciona via `npm run build` (alias de `npm run build:client`, esbuild → `dist/client.js`).
+- Build do cliente funciona via `npm run build` (alias de `npm run build:client`, esbuild → `dist/client.js`, `dist/styles.css`, assets e arquivos PWA).
 - `npm run dev-init` cria banco D1 local e aplica migrations.
-- `npm test` executa 28 testes de integracao (Vitest + Cloudflare pool workers).
+- `npm test` executa 29 testes de integracao (Vitest + Cloudflare pool workers).
 - CI configurado: typecheck, build, testes, git diff --check.
 - Issue templates e PR template configurados para repositorio publico.
 - Os documentos deste repositorio evoluem junto com o codigo.

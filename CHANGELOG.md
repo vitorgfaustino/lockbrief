@@ -8,11 +8,27 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 
 ## [Não publicado]
 
+### Alterado
+- Aplicação agora publica manifesto PWA, service worker online-first e ícones quadrados para instalação em celulares e desktops compatíveis.
+- Rodapé das páginas públicas agora exibe link explícito e compacto para o código-fonte AGPL-3.0.
+- Tela inicial removeu o subtítulo introdutório e passou a usar o título mais direto "Crie um segredo seguro.".
+- Tela inicial removeu o label visual "Segredo" acima do campo de mensagem, mantendo label acessível.
+- Microcopy abaixo do campo de mensagem foi encurtado para "Criptografia local." e alinhado com o contador para evitar quebra em mobile.
+- Layout mobile agora usa cards full-width alinhados ao menu, sem espaçamento vertical externo e sem cantos arredondados laterais, mantendo padding interno para ganhar largura útil sem colar o texto nas bordas.
+- Layout desktop amplo passou a usar 1366px de largura máxima, preservando a largura da coluna principal e ampliando a sidebar informativa.
+
 ### Corrigido
 - Ano do rodapé agora é calculado durante a requisição em `/` e `/privacidade`, evitando que runtimes de Worker com data inicial de módulo em epoch exibam `1970`.
-- Suíte de integração passou a cobrir o ano do rodapé nas páginas públicas, totalizando 28 testes.
+- Suíte de integração passou a cobrir o ano do rodapé e metadados PWA nas páginas públicas, totalizando 29 testes.
 
 ### Documentação
+- Documentado o modo PWA online-first, com CacheStorage restrito a assets públicos e sem cache de HTML, `/api/*`, envelopes, chaves, senhas ou segredos.
+- Adicionado `docs/LICENCA.md` com obrigações AGPL-3.0, limites de uso, identidade visual, oferta de código-fonte e separação entre fonte pública e configuração operacional privada.
+- Documentação de implantação reforça que cumprir AGPL-3.0 não exige publicar `wrangler.local.toml`, `.dev.vars`, `.env`, secrets, tokens ou `database_id` real.
+- Documentada a topologia recomendada para Deploy Button com modificações: repositório operacional privado mais fonte correspondente sanitizada pública ou acessível aos usuários.
+- Fluxo de atualização guiada por IA agora prioriza usuário leigo: pergunta somente quando não consegue inferir o método de publicação, evita escolhas técnicas desnecessárias e exige resumo final com próximo passo claro.
+- Regras de atualização agora proíbem sugerir PR, branch ou push para o upstream oficial; PRs externos seguem não aceitos no projeto.
+- Overlay protegido passou a ser tratado como caminho local seguro para atualização quando `wrangler.toml` operacional deve ser preservado e não há conflito conceitual, sem criar branch de trabalho `update/...` por padrão.
 - Fluxo de atualização por IA agora classifica a instalação antes de aplicar mudanças, distinguindo `wrangler.toml` como template público ou configuração operacional versionada.
 - Runbook de atualização passou a documentar overlay protegido para repositórios com histórico divergente ou `unrelated histories`, sem `--allow-unrelated-histories`, reset, rebase automático ou push forçado.
 - Regras reforçam que `wrangler.toml` operacional de Deploy Button/Workers Builds não deve ser substituído pelo template do upstream.

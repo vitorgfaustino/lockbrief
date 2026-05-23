@@ -12,6 +12,7 @@
 | `consume_token` | D1 | Efêmero (durante consumo) | Guarda de corrida transacional |
 | `requiresPassword` | Não persistido separadamente | Apenas na resposta de `/api/info` | Indicar se a UI deve preparar campo de senha após confirmação |
 | User-Agent e headers de prefetch | Não persistidos | Apenas durante a requisição | Bloqueio efêmero de bots, crawlers e previews |
+| Assets públicos do PWA | CacheStorage do navegador | Controlado pelo navegador e pelo service worker | Instalação e carregamento de arquivos estáticos |
 
 ## Dados NÃO coletados
 
@@ -22,6 +23,7 @@
 - Dados de fingerprinting
 - Histórico de navegação
 - Analytics de usuário
+- Segredos ou envelopes no CacheStorage do PWA
 - E-mail, nome, empresa ou qualquer dado pessoal
 - Conteúdo do segredo em texto claro
 - Chave de descriptografia
@@ -37,6 +39,7 @@
 - Os abuse controls usam contadores em memória, sem persistência.
 - O bloqueio de bots usa apenas avaliação efêmera de User-Agent e headers de prefetch/preview, sem armazenamento.
 - A limpeza de segredos expirados é automatizada via Cron Trigger.
+- A instalação PWA usa CacheStorage apenas para arquivos públicos estáticos (`client.js`, CSS, manifesto, logo, favicons e ícones). HTML, `/api/*`, payloads, envelopes, chaves, senhas e segredos não são cacheados.
 
 ## Retenção
 
@@ -44,6 +47,7 @@
 - Segredos não consumidos são removidos na primeira execução do cleanup após expiração.
 - Sobras criptografadas marcadas como consumidas por fallback são removidas pelo cleanup após margem curta de segurança.
 - Nenhum dado de segredo persiste após o consumo ou expiração.
+- A remoção ou expiração de segredos no servidor não depende do cache PWA, porque o service worker não armazena respostas de API nem envelopes.
 
 ## Observabilidade
 

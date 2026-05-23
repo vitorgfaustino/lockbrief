@@ -96,6 +96,21 @@ Esse controle:
 
 Para reduzir contagem no plano gratuito, o operador deve configurar regras de segurança da Cloudflare antes do Worker.
 
+## PWA e service worker
+
+O LockBrief pode ser instalado como PWA em navegadores compatíveis. O service worker faz parte do limite de confiança do navegador e existe apenas para permitir a experiência instalada e cachear arquivos públicos estáticos.
+
+Regras de segurança do PWA:
+
+- O service worker não intercepta nem cacheia navegações, `/`, `/api/*`, requisições `POST` ou qualquer resposta de segredo.
+- O cache fica limitado a `/client.js`, `/styles.css`, `/manifest.webmanifest`, favicons, logo e ícones PWA.
+- Não há push notification, background sync, fila offline, IndexedDB, `localStorage`, cookies ou armazenamento local de envelopes.
+- A chave no fragmento `#...` continua fora das requisições HTTP; o service worker não recebe esse fragmento em eventos `fetch`.
+- HTML e APIs continuam com `Cache-Control: no-store`.
+- A CSP permite `worker-src 'self'` apenas para registrar `/sw.js` no mesmo origin.
+
+Risco residual: se um navegador mantiver assets antigos em cache, uma versão anterior do cliente pode continuar ativa por curto período. O service worker usa estratégia network-first para assets, limpa caches antigos no `activate` e não cacheia respostas sensíveis.
+
 ## Limites do modelo
 
 1. **Phishing de link**: Se o link for interceptado (ex: ferramenta de ticket, e-mail comprometido), o atacante pode acessar o segredo antes do destinatário legítimo. Use o modo "chave separada" para mitigar.
@@ -155,6 +170,7 @@ O LockBrief opera no navegador — o limite de confiança do sistema. Extensões
 - Atributos `translate="no"` e `spellcheck="false"` no elemento de revelação.
 - Buffers `Uint8Array` de chave são sobrescritos com zeros após o uso.
 - Nenhum dado sensível é armazenado em `localStorage`, `sessionStorage` ou cookies.
+- O CacheStorage do PWA armazena apenas assets públicos estáticos e nunca deve conter segredo, envelope, chave, senha ou resposta de API.
 
 **O que está fora do nosso controle:**
 - Extensões com `content_scripts` em `document_start` podem interceptar o fragmento antes de qualquer JavaScript da página executar.

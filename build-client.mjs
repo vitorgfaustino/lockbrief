@@ -6,7 +6,7 @@
  */
 
 import * as esbuild from "esbuild";
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 mkdirSync("dist", { recursive: true });
 
@@ -34,6 +34,10 @@ if (result.errors.length > 0) {
 const css = readFileSync("src/client/styles.css", "utf-8");
 writeFileSync("dist/styles.css", css, "utf-8");
 
+// Copy PWA files at the site root so the service worker can use scope "/".
+copyFileSync("src/client/manifest.webmanifest", "dist/manifest.webmanifest");
+copyFileSync("src/client/sw.js", "dist/sw.js");
+
 // Copy static assets used by the HTML shell (logo, favicon, etc.)
 if (existsSync("src/client/assets")) {
   cpSync("src/client/assets", "dist/assets", { recursive: true });
@@ -41,4 +45,6 @@ if (existsSync("src/client/assets")) {
 
 console.log("✓ dist/client.js");
 console.log("✓ dist/styles.css");
+console.log("✓ dist/manifest.webmanifest");
+console.log("✓ dist/sw.js");
 console.log("✓ dist/assets");

@@ -44,6 +44,8 @@ Atualize sempre a partir do upstream oficial:
 https://github.com/vitorgfaustino/lockbrief.git
 ```
 
+O upstream oficial é fonte de atualização, não destino operacional. Não abra PR, branch ou push para `https://github.com/vitorgfaustino/lockbrief.git` durante atualização; PRs externos no projeto oficial não são aceitos.
+
 `origin` pode ser seu repositório operacional privado, um fork ou o repositório criado pelo Deploy Button. Para atualizar o produto, configure e busque o remoto `upstream`:
 
 ```bash
@@ -78,6 +80,8 @@ Durante atualização, não altere `wrangler.local.toml`, `.dev.vars`, `.env*`, 
 
 Se o fast-forward falhar por histórico divergente ou `unrelated histories`, não force merge, rebase, reset ou push. Use o fluxo de overlay protegido de [`docs/ATUALIZACAO.md`](docs/ATUALIZACAO.md), preservando `wrangler.toml` operacional, ou faça handoff manual.
 
+Se usar uma IA para atualizar, ela deve fazer poucas perguntas, preservar configuração operacional, não criar branch `update/...` por padrão e explicar ao final se falta commit, push ou deploy.
+
 ### 3. Deploy Button (1 clique)
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/vitorgfaustino/lockbrief)
@@ -89,6 +93,8 @@ Recomendação importante para produção: mantenha o repositório operacional p
 O template publica uma URL `workers.dev` por padrão e mantém Preview URLs desabilitadas para evitar URLs extras sem decisão explícita do operador.
 
 Regra: se você quer um repositório público como fonte, use-o só como fonte. Para operar em produção, mantenha o repositório gerado privado ou use o deploy manual com `wrangler.local.toml`.
+
+Se você modificar uma instância criada pelo Deploy Button, mantenha o repositório operacional privado e publique a fonte correspondente em outro repositório ou pacote sanitizado, sem IDs reais. Veja [`docs/LICENCA.md`](docs/LICENCA.md).
 
 ### 4. Workers Builds/GitHub
 
@@ -135,6 +141,7 @@ Esse fluxo mantém o `database_id` real apenas em `wrangler.local.toml`, arquivo
 - **Confirmação antes do consumo**: links abertos mostram uma etapa explícita antes de buscar e consumir a mensagem.
 - **Leitura única ou múltipla**: escolha se o segredo é destruído no primeiro acesso.
 - **Expiração**: 1 hora, 1 dia ou 1 semana. Cron de limpeza a cada 30 minutos.
+- **Instalável no celular**: PWA online-first com cache apenas de assets públicos.
 - **Zero rastreamento**: sem contas, cookies, analytics, IP, user-agent.
 - **Bloqueio de crawlers**: bots e previews conhecidos são rejeitados antes das rotas sensíveis.
 - **Zero custo**: funciona no plano gratuito da Cloudflare (100k requisições/dia, 5 GB D1 storage).
@@ -183,6 +190,7 @@ Ao abrir o link, o navegador consulta apenas metadados sem consumir o segredo. O
 | [`docs/SEGURANCA.md`](docs/SEGURANCA.md) | Criptografia, threat model, CSP, extensões |
 | [`docs/PRIVACIDADE.md`](docs/PRIVACIDADE.md) | Dados tratados, LGPD, minimização |
 | [`docs/IMPLANTACAO.md`](docs/IMPLANTACAO.md) | Deploy local/remoto, D1, CI, checklist |
+| [`docs/LICENCA.md`](docs/LICENCA.md) | Obrigações AGPL-3.0, identidade visual e repositórios operacionais |
 | [`docs/ATUALIZACAO.md`](docs/ATUALIZACAO.md) | Atualização por upstream oficial, sem alterar bindings |
 | [`docs/OPERACAO-IA.md`](docs/OPERACAO-IA.md) | Intenções aceitas, IA guiada e checkpoints |
 | [`AI-START.md`](AI-START.md) | Guia para IAs operarem o projeto |
@@ -193,6 +201,8 @@ Ao abrir o link, o navegador consulta apenas metadados sem consumir o segredo. O
 
 ## Licença
 
-AGPL-3.0 — veja [LICENSE](LICENSE).
+AGPL-3.0 — veja [LICENSE](LICENSE) e [`docs/LICENCA.md`](docs/LICENCA.md).
+
+Se você modificar e operar o LockBrief por rede, ofereça aos usuários o código-fonte correspondente da versão modificada. Isso não exige publicar `wrangler.local.toml`, `.dev.vars`, `.env`, tokens, secrets ou `database_id` real.
 
 Criado por [Vitor Faustino](https://github.com/vitorgfaustino).

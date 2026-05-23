@@ -20,6 +20,13 @@ function renderHtml(): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LockBrief — Segredos efêmeros. Controle local.</title>
   <meta name="description" content="Compartilhe segredos que se autodestroem. Criptografia no navegador. Leitura única.">
+  <meta name="theme-color" content="#0B1115">
+  <meta name="application-name" content="LockBrief">
+  <meta name="apple-mobile-web-app-title" content="LockBrief">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/assets/pwa-icon-192.png">
   <link rel="icon" type="image/png" href="/assets/favicon.png">
   <link rel="shortcut icon" type="image/x-icon" href="/assets/favicon.ico">
   <link rel="stylesheet" href="/styles.css">
@@ -40,9 +47,13 @@ function renderHtml(): string {
 
   <footer class="app-footer">
     <div class="footer-inner">
-      <span>${currentYear}</span> v${VERSION} ·
-      <a href="/privacidade" class="footer-link">Privacidade</a> ·
-      <span>Criado por <a href="https://github.com/vitorgfaustino/lockbrief" class="footer-link" target="_blank" rel="noopener">Vitor Faustino</a></span>
+      <span>${currentYear} · v${VERSION}</span>
+      <span class="footer-separator">·</span>
+      <a href="/privacidade" class="footer-link">Privacidade</a>
+      <span class="footer-separator">·</span>
+      <a href="https://github.com/vitorgfaustino/lockbrief" class="footer-link" target="_blank" rel="noopener">Código AGPL-3.0</a>
+      <span class="footer-separator">·</span>
+      <span>Criado por Vitor Faustino</span>
     </div>
   </footer>
 

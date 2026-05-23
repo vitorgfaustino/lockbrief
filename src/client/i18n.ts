@@ -9,7 +9,6 @@ interface Strings {
   title: string;
   tagline: string;
   createTitle: string;
-  createSubtitle: string;
   createCta: string;
   createSectionMessage: string;
   createSectionProtection: string;
@@ -99,8 +98,7 @@ interface Strings {
 const ptBR: Strings = {
   title: "LockBrief",
   tagline: "Segredos efêmeros. Controle local.",
-  createTitle: "Crie uma nota segura e temporária.",
-  createSubtitle: "O conteúdo é criptografado no navegador antes de sair do seu dispositivo.",
+  createTitle: "Crie um segredo seguro.",
   createCta: "Criar link seguro",
   createSectionMessage: "Mensagem",
   createSectionProtection: "Proteção",
@@ -108,7 +106,7 @@ const ptBR: Strings = {
   createSectionRead: "Leitura",
   secretLabel: "Segredo",
   secretPlaceholder: "Digite o segredo que deseja compartilhar...",
-  secretHint: "Criptografado localmente antes de enviar.",
+  secretHint: "Criptografia local.",
   expiresLabel: "Expira em",
   expires1h: "1 hora",
   expires1d: "1 dia",

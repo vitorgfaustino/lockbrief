@@ -165,16 +165,14 @@ export interface CreateScreenCallbacks {
 export function renderCreateScreen(callbacks: CreateScreenCallbacks): void {
   const el = screens.create!;
   el.innerHTML = `
-    <div class="card">
+    <div class="card card-create">
       <h1 class="card-title">${t("createTitle")}</h1>
-      <p class="card-subtitle">${t("createSubtitle")}</p>
       <form id="createForm" novalidate>
         <div class="form-section">
           <h2 class="form-section-title">${t("createSectionMessage")}</h2>
           <div class="form-group">
-            <label for="secretInput" class="form-label">${t("secretLabel")}</label>
             <textarea id="secretInput" class="form-textarea" rows="6" maxlength="65536"
-              placeholder="${t("secretPlaceholder")}" translate="no" spellcheck="false" autocomplete="off"></textarea>
+              placeholder="${t("secretPlaceholder")}" aria-label="${t("secretLabel")}" translate="no" spellcheck="false" autocomplete="off"></textarea>
             <div class="textarea-meta">
               <span id="charCount" class="char-count">0 ${t("charsCounter")}</span>
               <span class="form-hint">${t("secretHint")}</span>

@@ -6,6 +6,7 @@ O objetivo dele é permitir que a IA:
 
 - inicie ou execute o projeto localmente sem clone aninhado
 - atualize uma instalação existente buscando sempre o upstream oficial sem quebrar configuração local
+- conduza atualização de instalação existente com perguntas simples, sem exigir que o operador entenda Git interno
 - saiba quando parar e entregar handoff manual ao usuário
 - trate corretamente execução local, deploy por IA, Workers Builds/GitHub e Deploy Button
 - nunca grave segredos, tokens, IDs reais de recursos ou configuração privada no GitHub
@@ -75,6 +76,8 @@ https://github.com/vitorgfaustino/lockbrief.git
 Regras obrigatórias:
 
 - toda atualização de projeto deve buscar este upstream oficial antes de alterar código local
+- o upstream oficial é fonte de leitura para atualização; ele não é destino de push, branch ou Pull Request do operador
+- a IA nunca deve sugerir abrir PR no upstream oficial; PRs externos são fechados automaticamente neste projeto
 - o remoto preferencial para essa fonte é `upstream`
 - não assumir que `origin` aponta para o projeto oficial; em instalações reais, `origin` pode ser um fork privado, um repositório operacional do Workers Builds ou o repositório gerado pelo Deploy Button
 - `origin` só deve ser usado para push após confirmação explícita do operador
@@ -128,11 +131,18 @@ Mapeie o pedido do usuário para uma destas intenções antes de agir:
 
 Se o pedido vier em linguagem natural, primeiro mapeie para uma dessas intenções antes de executar qualquer ação.
 
-## Perguntas obrigatórias
+## Perguntas obrigatórias sem atrito
 
 ### Antes de publicação ou atualização
 
-A IA deve sempre perguntar:
+A IA deve tentar descobrir o método de publicação pelo contexto antes de perguntar. Sinais úteis:
+
+- `origin` aponta para repositório operacional do usuário
+- `wrangler.toml` contém configuração provisionada pela Cloudflare
+- existe `wrangler.local.toml`
+- o usuário menciona Deploy Button, Workers Builds, GitHub ou Wrangler local
+
+Se ainda não for possível inferir, faça apenas uma pergunta curta:
 
 `Como você publica o projeto?`
 
@@ -144,11 +154,27 @@ Métodos aceitos:
 4. `Deploy Button`
 5. `Primeira publicação`
 
+Para usuário leigo, apresente as opções em linguagem simples:
+
+- "Só uso localmente"
+- "Publico pelo Wrangler no meu computador"
+- "O GitHub publica pela Cloudflare"
+- "Usei o botão Deploy da Cloudflare"
+- "Ainda é a primeira publicação"
+
 Essa resposta muda:
 
 - se a migration remota será executada por CLI ou só orientada
 - se a atualização depende de busca no upstream oficial, push para GitHub ou configuração de painel
 - onde ficam os valores reais de Cloudflare: `wrangler.local.toml`, dashboard ou repositório operacional gerado
+
+Regras de conversa:
+
+- não transforme a classificação técnica em pergunta para o operador se a IA conseguir inferir com segurança
+- não peça para o usuário escolher entre merge, overlay, branch ou PR; escolha o caminho seguro documentado
+- pergunte somente quando houver risco real de sobrescrever dado local, alterar configuração operacional, publicar ou depender de decisão de Cloudflare/GitHub
+- explique termos técnicos quando eles aparecerem no resumo
+- nunca ofereça PR no upstream oficial; se houver feedback para o projeto, oriente abrir Issue
 
 ### Antes de criar banco D1
 
@@ -214,13 +240,15 @@ O deploy remoto não faz parte deste fluxo. Pare e peça confirmação antes de 
 
 O runbook canônico deste fluxo é `docs/ATUALIZACAO.md`. A seção abaixo é o resumo obrigatório para a IA quando o pedido for `Atualizar o Projeto`.
 
+Ao receber `Atualizar o Projeto`, entenda isso como autorização para executar a atualização local segura e as validações locais. Essa autorização não inclui push, deploy remoto, alteração de dashboard, alteração de binding ou substituição de configuração operacional.
+
 Quando o pedido for `Atualizar o Projeto`, a IA deve:
 
 1. rodar `git status --short`
 2. rodar `git branch --show-current`
 3. rodar `git remote -v`
 4. identificar mudanças locais que precisam ser preservadas
-5. perguntar ou descobrir o método de publicação
+5. descobrir o método de publicação e perguntar somente se não for inferível
 6. classificar a instalação como `fonte_publica`, `deploy_wrangler_local`, `operacional_versionado` ou `historico_incompativel`
 7. preservar explicitamente:
    - `wrangler.local.toml` (pode conter `database_id` real)
@@ -263,7 +291,7 @@ git merge-base --is-ancestor HEAD upstream/main
 git merge --ff-only upstream/main
 ```
 
-16. se `git merge-base` não retornar ancestral comum, se `git merge --ff-only` falhar ou se `wrangler.toml` atual for operacional, não forçar histórico; criar branch local de rollback e usar o fluxo de overlay protegido de `docs/ATUALIZACAO.md` ou entregar handoff manual
+16. se `git merge-base` não retornar ancestral comum, se `git merge --ff-only` falhar ou se `wrangler.toml` atual for operacional, não forçar histórico; criar apenas branch local de rollback `backup/...` e usar o fluxo de overlay protegido de `docs/ATUALIZACAO.md` quando não houver conflito conceitual
 17. rodar `npm install`
 18. rodar `npm run dev-init`
 19. rodar `npm run build`
@@ -277,6 +305,16 @@ Regra específica de configuração:
 - Workers Builds/GitHub e Deploy Button podem ter configuração operacional no painel ou no repositório gerado; a IA não deve trocar bindings, `database_id`, variables, secrets ou `wrangler.toml` operacional sem confirmação explícita
 - se a atualização do upstream alterar `wrangler.toml`, tratar como mudança no template público; em repositório operacional, preservar o arquivo atual e reconciliar manualmente somente as mudanças seguras
 - nunca resolver `unrelated histories` com `--allow-unrelated-histories`, rebase automático, `reset --hard` ou push forçado
+- não criar branch de trabalho `update/...` por padrão; use branch local `backup/...` somente como rollback antes de overlay protegido
+- nunca sugerir PR para `https://github.com/vitorgfaustino/lockbrief.git`; o próximo passo de publicação, quando confirmado, é commit/push para o repositório operacional do usuário ou deploy pelo método escolhido
+
+Resumo final obrigatório após validação:
+
+- branch atual e destino operacional, sem expor valores sensíveis
+- arquivos ou tipos de configuração preservados, principalmente `wrangler.toml` operacional e `wrangler.local.toml`
+- validações executadas e resultado
+- se as mudanças estão apenas locais, commitadas, enviadas para `origin` ou publicadas
+- próximo passo em uma frase simples, por exemplo: "Para publicar via Workers Builds, posso fazer commit e push para `origin/main` se você autorizar."
 
 ## Modos de publicação
 

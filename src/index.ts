@@ -15,6 +15,8 @@
  * Assets:
  *   /client.js        → Bundled client (served via [assets])
  *   /styles.css       → CSS (served via [assets])
+ *   /manifest.webmanifest → PWA manifest (served via [assets])
+ *   /sw.js            → PWA service worker (served via [assets])
  */
 
 import { createRouter, Env } from "./router";

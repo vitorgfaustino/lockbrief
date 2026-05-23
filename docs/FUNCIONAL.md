@@ -12,6 +12,20 @@
 | POST | `/api/fetch` | Consome e retorna envelope criptografado | 200 |
 | GET | `/api/health` | Health check (conectividade D1) | 200 ou 503 |
 
+## Assets estáticos e PWA
+
+Estes caminhos são publicados pelo diretório `[assets]` do Wrangler e devem ser servidos como Static Assets da Cloudflare quando o deploy usa `dist`:
+
+| Rota | Origem no build | Finalidade |
+|---|---|---|
+| GET `/client.js` | `dist/client.js` | Cliente TypeScript empacotado |
+| GET `/styles.css` | `dist/styles.css` | CSS da interface |
+| GET `/manifest.webmanifest` | `dist/manifest.webmanifest` | Manifesto PWA |
+| GET `/sw.js` | `dist/sw.js` | Service worker PWA com escopo `/` |
+| GET `/assets/*` | `dist/assets/*` | Logo, favicons e ícones PWA |
+
+O service worker é online-first. Ele só intercepta `GET` de assets públicos conhecidos e ignora navegações, `/`, `/api/*` e qualquer método diferente de `GET`.
+
 ## API: POST /api/store
 
 ### Request
@@ -137,7 +151,7 @@ Retorna metadados do segredo **sem consumi-lo**.
 ## Headers de segurança
 
 ### HTML (GET /)
-- CSP: `default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; manifest-src 'self'; worker-src 'none'; base-uri 'self'; form-action 'self'`
+- CSP: `default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; manifest-src 'self'; worker-src 'self'; base-uri 'self'; form-action 'self'`
 - HSTS: `max-age=31536000; includeSubDomains; preload`
 - X-Frame-Options: `DENY`
 - Referrer-Policy: `no-referrer`

@@ -41,6 +41,24 @@ const API = {
   },
 };
 
+function registerServiceWorker(): void {
+  if (!("serviceWorker" in navigator)) return;
+
+  const register = (): void => {
+    navigator.serviceWorker.register("/sw.js", {
+      scope: "/",
+      updateViaCache: "none",
+    }).catch(() => {});
+  };
+
+  if (document.readyState === "complete") {
+    register();
+    return;
+  }
+
+  window.addEventListener("load", register, { once: true });
+}
+
 // ── Reveal state — envelope + key stored in memory after first fetch ──
 let storedEnvelope: Envelope | null = null;
 let storedKeyBytes: Uint8Array | null = null;
@@ -55,6 +73,7 @@ function hasStoredData(): boolean {
 async function main(): Promise<void> {
   initUI();
   getLang();
+  registerServiceWorker();
 
   const hash = window.location.hash;
   if (hash) {

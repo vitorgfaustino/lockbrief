@@ -4,7 +4,9 @@
 
 ### Tela Criar
 - Formulário dividido em blocos: Mensagem, Proteção, Expiração e Leitura.
-- Bloco Mensagem com textarea (64 KB máximo), contador de caracteres ao vivo.
+- Título principal: "Crie um segredo seguro.", sem subtítulo introdutório abaixo.
+- Bloco Mensagem com textarea (64 KB máximo), contador de caracteres ao vivo e microcopy compacto "Criptografia local." alinhado na mesma linha quando houver largura disponível.
+- O campo de mensagem usa label acessível, mas não exibe o texto visual "Segredo" acima do textarea.
 - Bloco Proteção com controle segmentado para escolher entre chave automática e senha humana.
 - Chave automática é o modo padrão mais forte. O resultado exibe link completo, link sem chave e chave separada.
 - Senha humana permite que a pessoa defina a própria senha ou gere uma sugestão localmente no navegador para facilitar digitação ou ditado. O resultado exibe link completo e senha.
@@ -93,6 +95,13 @@
 - Usuários reais em navegadores comuns continuam acessando o fluxo normal.
 - Este bloqueio reduz uso de D1/CPU dentro do Worker; economia de contagem de Worker requests depende de regras configuradas na borda da Cloudflare.
 
+### PWA e instalação no celular
+- A aplicação publica manifesto PWA e ícones para permitir instalação pelo fluxo nativo do navegador em celulares e desktops compatíveis.
+- O modo instalado abre o LockBrief em janela standalone, usando `/` como tela inicial.
+- O PWA é online-first: criar, consultar metadados e revelar segredos continuam exigindo rede e não existe fila offline.
+- O service worker usa cache local apenas para arquivos públicos estáticos do app. Ele não cacheia HTML, rotas `/api/*`, envelopes criptografados, payloads, segredos, chaves ou senhas.
+- A instalação não adiciona botão próprio dentro da interface; o usuário usa a ação de instalação oferecida pelo navegador.
+
 ## Consistência visual
 
 - Botões principais usam ícones planos alinhados à função: cadeado para criar, olho para revelar, cópia para copiar, casa para voltar, adição para novo segredo.
@@ -101,7 +110,8 @@
 - Campos, labels e descrições usam contraste suficiente para leitura em fundo escuro sem alterar a paleta visual do projeto.
 - Em mobile, campos de resultado usam tamanho de texto maior, podem quebrar linhas internamente e mantêm o botão de copiar abaixo do valor quando não houver largura suficiente.
 - Em mobile, botões podem quebrar linha internamente e o botão de copiar segredo deixa de sobrepor a área de texto.
-- O rodapé das páginas públicas exibe o ano civil atual calculado pelo Worker durante a requisição e a versão sincronizada com `package.json`, sem depender de script inline no navegador.
+- O rodapé das páginas públicas exibe o ano civil atual calculado pelo Worker durante a requisição, a versão sincronizada com `package.json`, link de privacidade e link explícito "Código AGPL-3.0", centralizado e compacto no mobile, sem depender de script inline no navegador.
+- O rodapé exibe "Criado por Vitor Faustino" como assinatura textual.
 
 ## Estados de erro do servidor
 
@@ -136,5 +146,6 @@
 ## Responsividade
 
 - **Desktop (>=960px)**: duas colunas (formulário + painel informativo).
+- **Desktop amplo (>=1180px)**: largura máxima do layout de 1366px, mantendo a coluna principal em 708px e usando o espaço extra para ampliar a sidebar informativa.
 - **Tablet (640-959px)**: uma coluna, painel abaixo.
-- **Mobile (<640px)**: cards com padding reduzido, botões 44px+, texto ajustado.
+- **Mobile (<640px)**: cards e painel informativo ocupam a largura total da viewport e começam alinhados ao menu, sem espaçamento vertical externo, sem cantos arredondados laterais, mantendo padding interno para evitar texto grudado nas bordas. Botões seguem com 44px+ e texto ajustado.

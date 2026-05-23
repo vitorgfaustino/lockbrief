@@ -80,6 +80,7 @@ describe("LockBrief Worker", () => {
       expect(res.headers.get("Content-Security-Policy")).toContain("default-src 'self'");
       expect(res.headers.get("Content-Security-Policy")).toContain("object-src 'none'");
       expect(res.headers.get("Content-Security-Policy")).toContain("frame-src 'none'");
+      expect(res.headers.get("Content-Security-Policy")).toContain("worker-src 'self'");
     });
 
     it("contem elementos da interface", async () => {
@@ -89,14 +90,23 @@ describe("LockBrief Worker", () => {
       expect(html).toContain("app-header");
       expect(html).toContain("app-footer");
       expect(html).toContain("Privacidade");
+      expect(html).toContain("Código AGPL-3.0");
+    });
+
+    it("inclui metadados PWA", async () => {
+      const res = await fetchWorker("/");
+      const html = await res.text();
+      expect(html).toContain('<link rel="manifest" href="/manifest.webmanifest">');
+      expect(html).toContain('<meta name="theme-color" content="#0B1115">');
+      expect(html).toContain('<link rel="apple-touch-icon" href="/assets/pwa-icon-192.png">');
     });
 
     it("renderiza ano atual no rodape", async () => {
       const res = await fetchWorker("/");
       const html = await res.text();
       const currentYear = new Date().getFullYear();
-      expect(html).toContain(`<span>${currentYear}</span> v`);
-      expect(html).not.toContain("<span>1970</span> v");
+      expect(html).toContain(`<span>${currentYear} · v`);
+      expect(html).not.toContain("<span>1970 · v");
     });
   });
 
@@ -107,14 +117,16 @@ describe("LockBrief Worker", () => {
       expect(res.status).toBe(200);
       const html = await res.text();
       expect(html).toContain("Política de Privacidade");
+      expect(html).toContain("Código AGPL-3.0");
+      expect(html).toContain('<link rel="manifest" href="/manifest.webmanifest">');
     });
 
     it("renderiza ano atual no rodape", async () => {
       const res = await fetchWorker("/privacidade");
       const html = await res.text();
       const currentYear = new Date().getFullYear();
-      expect(html).toContain(`<span>${currentYear}</span> v`);
-      expect(html).not.toContain("<span>1970</span> v");
+      expect(html).toContain(`<span>${currentYear} · v`);
+      expect(html).not.toContain("<span>1970 · v");
     });
   });
 

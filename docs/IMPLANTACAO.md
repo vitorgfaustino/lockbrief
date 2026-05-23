@@ -21,6 +21,16 @@ O repositório público nunca deve conter configuração operacional real.
 
 Exceção operacional: um repositório gerado pelo Deploy Button ou conectado ao Workers Builds pode ter `wrangler.toml` atualizado pela Cloudflare com IDs reais. Nesse cenário, o arquivo deve ser tratado como configuração operacional protegida durante atualizações e o repositório deve permanecer privado se a política for não publicar IDs reais.
 
+## Licença AGPL e configuração operacional
+
+A obrigação AGPL-3.0 é disponibilizar o código-fonte correspondente da versão usada ou modificada, não publicar segredos, IDs reais ou configuração operacional privada.
+
+Para uma instância modificada, o operador deve manter uma oferta clara de código-fonte aos usuários. No LockBrief, as páginas públicas exibem o link **Código AGPL-3.0** no rodapé. Se a instância roda um fork ou pacote próprio, esse link deve apontar para o código correspondente dessa instância, não necessariamente para o upstream oficial.
+
+O código-fonte correspondente pode incluir `wrangler.toml` como template com placeholders e instruções para criar recursos próprios. Ele não deve incluir `wrangler.local.toml`, `.dev.vars`, `.env`, tokens, secrets, `database_id` real ou valores reais do dashboard da Cloudflare.
+
+Guia completo: [`docs/LICENCA.md`](LICENCA.md).
+
 ## Rotas públicas e previews
 
 O template público mantém `workers_dev = true` para que Deploy Button e Workers Builds entreguem uma URL `workers.dev` imediatamente após o deploy.
@@ -51,6 +61,8 @@ https://github.com/vitorgfaustino/lockbrief.git
 ```
 
 Use este upstream como fonte de atualização mesmo quando `origin` apontar para um fork, repositório operacional privado, Workers Builds ou repositório gerado pelo Deploy Button.
+
+O upstream oficial não é destino operacional do usuário. Durante atualização, não abra PR, branch ou push para `https://github.com/vitorgfaustino/lockbrief.git`; PRs externos no projeto oficial não são aceitos.
 
 Fluxo seguro:
 
@@ -102,14 +114,18 @@ Regras:
 3. Não substitua `wrangler.toml` operacional pelo template do upstream.
 4. Não altere bindings, IDs reais, secrets ou variables como parte de uma atualização de código.
 5. Não use `git reset --hard`, `git checkout --`, `git clean`, rebase automático, merge com conflito, `--allow-unrelated-histories`, `git push --force` ou `git push --force-with-lease` para "forçar" atualização.
-6. Se `git merge --ff-only upstream/main` falhar, resolva como divergência operacional: use o overlay protegido de `docs/ATUALIZACAO.md` quando autorizado, ou faça handoff manual.
+6. Se `git merge --ff-only upstream/main` falhar, resolva como divergência operacional: use o overlay protegido de `docs/ATUALIZACAO.md` quando for seguro, ou faça handoff manual.
 7. Se o upstream alterar `wrangler.toml`, trate a mudança como atualização do template público; em repositório operacional, preserve o arquivo local e reflita algo somente depois de revisar impacto em D1, cron, routes, workers.dev e preview URLs.
+8. Não crie branch de trabalho `update/...` por padrão; use branch local `backup/...` apenas como rollback antes de overlay protegido.
+9. Não ofereça PR para o upstream oficial como próximo passo.
 
 Após validar localmente, publique conforme o método da instância:
 
 - Wrangler local: manter `wrangler.local.toml` e usar `npm run d1:migrate:remote:private` seguido de `npx wrangler deploy --config wrangler.local.toml`.
-- Workers Builds/GitHub: fazer push apenas para o repositório operacional correto, depois de confirmar que nenhum ID real será exposto em repositório público.
+- Workers Builds/GitHub: fazer commit/push apenas para o repositório operacional correto, depois de confirmar que nenhum ID real será exposto em repositório público.
 - Deploy Button: atualizar o repositório gerado buscando o upstream oficial, preservar a configuração provisionada pela Cloudflare e nunca usar force push para reescrever a `main` operacional.
+
+Se a atualização foi feita por IA, o resumo final deve dizer se as mudanças ficaram locais, se há commit pendente, se houve push/deploy e qual é o próximo passo simples para o operador.
 
 ## Deploy manual privado com Wrangler
 
@@ -167,6 +183,10 @@ Consequência operacional: o repositório fonte do LockBrief permanece limpo, ma
 
 Regra prática para produção: trate o repositório operacional como privado mesmo que `database_id` não seja uma senha. O risco aqui não é segredo, é exposição de configuração real e de recursos vinculados à instância.
 
+Se o operador modificar uma instância criada pelo Deploy Button, a recomendação é manter o repositório gerado pela Cloudflare como operacional privado e publicar a fonte correspondente em outro repositório ou pacote sanitizado. Esse segundo artefato deve conter o código modificado e um `wrangler.toml` com placeholders, sem `database_id` real, tokens, secrets, routes privadas ou valores do dashboard.
+
+O link **Código AGPL-3.0** da instância deve apontar para essa fonte correspondente sanitizada. Não aponte esse link para o repositório operacional privado se ele contém configuração real.
+
 ## Variáveis e secrets
 
 O LockBrief v1.1.0 não exige secrets de runtime.
@@ -178,6 +198,8 @@ Se uma versão futura adicionar secrets:
 1. local: usar `.dev.vars` ou `.env`, ambos ignorados pelo Git
 2. produção: usar Cloudflare Dashboard → Settings → Variables and Secrets, ou `wrangler secret put`
 3. documentação pública: usar somente nomes e exemplos fictícios
+
+Se uma versão futura adicionar variáveis não sensíveis, documente nomes e exemplos fictícios no código-fonte. Valores reais de produção devem ficar no dashboard da Cloudflare ou em configuração operacional privada quando sua publicação expuser a instância. Secrets nunca devem ser gravados em `wrangler.toml` ou no código-fonte.
 
 ## Migrações D1
 
@@ -229,7 +251,13 @@ Não use regras que exijam cookies ou fingerprinting próprio da aplicação. O 
 npm run build
 ```
 
-Compila `src/client/*.ts` em `dist/client.js`, copia CSS para `dist/styles.css` e publica `src/client/assets/*` em `dist/assets/*`.
+Compila `src/client/*.ts` em `dist/client.js`, copia CSS para `dist/styles.css`, publica `src/client/assets/*` em `dist/assets/*` e copia os arquivos PWA `src/client/manifest.webmanifest` e `src/client/sw.js` para a raiz de `dist`.
+
+### PWA e Static Assets
+
+`/manifest.webmanifest`, `/sw.js` e `/assets/pwa-icon*.png` devem ser servidos como Static Assets da Cloudflare. Não configure `run_worker_first` para esses caminhos, pois isso faria solicitações de assets invocarem o Worker e consumirem a cota do plano gratuito.
+
+O placeholder principal do ícone fica em `src/client/assets/pwa-icon.png`. Para trocar a identidade visual instalada, substitua também `pwa-icon-192.png` e `pwa-icon-512.png` por PNGs quadrados com as dimensões correspondentes.
 
 ## Testes
 
@@ -237,7 +265,7 @@ Compila `src/client/*.ts` em `dist/client.js`, copia CSS para `dist/styles.css` 
 npm test
 ```
 
-Executa 28 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`. Os testes usam D1 isolado e não afetam bancos de desenvolvimento ou produção.
+Executa 29 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`. Os testes usam D1 isolado e não afetam bancos de desenvolvimento ou produção.
 
 ## Checklist de validação pré-release
 
@@ -246,7 +274,7 @@ Executa 28 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`
 - [ ] `wrangler.toml` contém apenas placeholder público no repositório fonte, ou foi preservado como configuração operacional privada.
 - [ ] `npm run typecheck` passa.
 - [ ] `npm run build` passa.
-- [ ] `npm test` passa com 28/28.
+- [ ] `npm test` passa com 29/29.
 - [ ] `npx wrangler deploy --dry-run --outdir /tmp/lockbrief-dry-run` empacota o Worker.
 - [ ] `CHANGELOG.md` e `RELEASE_NOTES.md` estão atualizados.
 - [ ] `AI-START.md`, `docs/ATUALIZACAO.md` e `docs/OPERACAO-IA.md` estão alinhados se houve mudança de atualização, deploy ou operação por IA.
@@ -254,6 +282,7 @@ Executa 28 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`
 ## Checklist de validação pós-deploy
 
 - [ ] `GET /` retorna HTML com CSP headers.
+- [ ] `GET /manifest.webmanifest` e `GET /sw.js` são servidos como assets estáticos.
 - [ ] `GET /api/health` retorna `{ status: "ok", db: "connected" }`.
 - [ ] `GET /privacidade` retorna página de privacidade.
 - [ ] `POST /api/store` com payload válido retorna `201 { ok: true }`.
@@ -261,6 +290,7 @@ Executa 28 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`
 - [ ] `POST /api/info` retorna metadados sem consumir.
 - [ ] Criar segredo e verificar que plaintext não aparece no DevTools Network.
 - [ ] Verificar que chave está apenas no fragmento `#`.
+- [ ] Verificar no DevTools/Application que o service worker não cacheia `/api/*` nem HTML.
 - [ ] Testar leitura única com duas abas simultâneas: apenas uma recebe o envelope.
 - [ ] Testar leitura múltipla (`oneTime=false`): mesmo link funciona várias vezes até expirar.
 - [ ] Testar `/api/info` sem consumo do segredo.
