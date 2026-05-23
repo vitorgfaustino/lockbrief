@@ -34,7 +34,47 @@ npm run dev
 
 Abra `http://localhost:8787`.
 
-### 2. Deploy Button (1 clique)
+### 2. Atualizar instalação existente
+
+Runbook completo: [`docs/ATUALIZACAO.md`](docs/ATUALIZACAO.md).
+
+Atualize sempre a partir do upstream oficial:
+
+```text
+https://github.com/vitorgfaustino/lockbrief.git
+```
+
+`origin` pode ser seu repositório operacional privado, um fork ou o repositório criado pelo Deploy Button. Para atualizar o produto, configure e busque o remoto `upstream`:
+
+```bash
+git status --short
+git remote -v
+git remote get-url upstream
+```
+
+Se `upstream` não existir, crie o remoto:
+
+```bash
+git remote add upstream https://github.com/vitorgfaustino/lockbrief.git
+```
+
+Depois busque e aplique somente fast-forward:
+
+```bash
+git fetch upstream --tags --prune
+git merge --ff-only upstream/main
+npm install
+npm run dev-init
+npm run build
+npm run typecheck
+npm test
+```
+
+Se `upstream` já existir, confirme que ele aponta para `https://github.com/vitorgfaustino/lockbrief.git`.
+
+Durante atualização, não altere `wrangler.local.toml`, `.dev.vars`, `.env*`, `database_id` real, binding D1 `DB`, variables, secrets ou bindings configurados no dashboard da Cloudflare. Se houver conflito em configuração de deploy, pare e revise manualmente.
+
+### 3. Deploy Button (1 clique)
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/vitorgfaustino/lockbrief)
 
@@ -46,7 +86,7 @@ O template publica uma URL `workers.dev` por padrão e mantém Preview URLs desa
 
 Regra: se você quer um repositório público como fonte, use-o só como fonte. Para operar em produção, mantenha o repositório gerado privado ou use o deploy manual com `wrangler.local.toml`.
 
-### 3. Workers Builds/GitHub
+### 4. Workers Builds/GitHub
 
 Conecte o repositório ao Cloudflare Workers Builds para publicar a cada `git push`:
 
@@ -57,7 +97,7 @@ Conecte o repositório ao Cloudflare Workers Builds para publicar a cada `git pu
    - **Deploy command:** `npm run deploy`
 4. Garanta que o repositório operacional não exponha `database_id` real, tokens ou secrets se ele for público.
 
-### 4. CLI manual com configuração privada
+### 5. CLI manual com configuração privada
 
 ```bash
 git clone https://github.com/vitorgfaustino/lockbrief.git
@@ -138,6 +178,8 @@ Ao abrir o link, o navegador consulta apenas metadados sem consumir o segredo. O
 | [`docs/SEGURANCA.md`](docs/SEGURANCA.md) | Criptografia, threat model, CSP, extensões |
 | [`docs/PRIVACIDADE.md`](docs/PRIVACIDADE.md) | Dados tratados, LGPD, minimização |
 | [`docs/IMPLANTACAO.md`](docs/IMPLANTACAO.md) | Deploy local/remoto, D1, CI, checklist |
+| [`docs/ATUALIZACAO.md`](docs/ATUALIZACAO.md) | Atualização por upstream oficial, sem alterar bindings |
+| [`docs/OPERACAO-IA.md`](docs/OPERACAO-IA.md) | Intenções aceitas, IA guiada e checkpoints |
 | [`AI-START.md`](AI-START.md) | Guia para IAs operarem o projeto |
 | [`SECURITY.md`](SECURITY.md) | Política para reporte de vulnerabilidades |
 | [`RELEASE_NOTES.md`](RELEASE_NOTES.md) | Notas da release atual |

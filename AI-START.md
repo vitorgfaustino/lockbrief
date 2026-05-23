@@ -5,7 +5,7 @@ Este arquivo é a entrada única para qualquer IA operar o LockBrief v1.1.0 com 
 O objetivo dele é permitir que a IA:
 
 - inicie ou execute o projeto localmente sem clone aninhado
-- atualize uma instalação existente sem quebrar configuração local
+- atualize uma instalação existente buscando sempre o upstream oficial sem quebrar configuração local
 - saiba quando parar e entregar handoff manual ao usuário
 - trate corretamente execução local, deploy por IA, Workers Builds/GitHub e Deploy Button
 - nunca grave segredos, tokens, IDs reais de recursos ou configuração privada no GitHub
@@ -17,11 +17,13 @@ Se a IA recebeu apenas este arquivo, ela deve conseguir orientar ou executar o f
 Leia nesta ordem antes de agir:
 
 1. `AGENTS.md`
-2. `docs/FUNCIONAL.md`
-3. `docs/SEGURANCA.md`
-4. `docs/PRIVACIDADE.md`
-5. `docs/IMPLANTACAO.md`
-6. `docs/COMPORTAMENTO.md`
+2. `docs/OPERACAO-IA.md`
+3. `docs/ATUALIZACAO.md`
+4. `docs/FUNCIONAL.md`
+5. `docs/SEGURANCA.md`
+6. `docs/PRIVACIDADE.md`
+7. `docs/IMPLANTACAO.md`
+8. `docs/COMPORTAMENTO.md`
 
 ## Estado atual do produto
 
@@ -61,7 +63,37 @@ O produto não mantém:
 - O Deploy Button pode criar um repositório operacional na conta do usuário e atualizar a configuração Wrangler com IDs reais de recursos provisionados. Se a política for zero IDs reais no GitHub, esse repositório deve ser privado ou o operador deve usar deploy manual com `wrangler.local.toml`.
 - `plan.md` não faz parte do fluxo operacional atual; se estiver ausente, não recriar automaticamente.
 
+## Upstream canônico de atualização
+
+O repositório oficial para atualizar o LockBrief é:
+
+```text
+https://github.com/vitorgfaustino/lockbrief.git
+```
+
+Regras obrigatórias:
+
+- toda atualização de projeto deve buscar este upstream oficial antes de alterar código local
+- o remoto preferencial para essa fonte é `upstream`
+- não assumir que `origin` aponta para o projeto oficial; em instalações reais, `origin` pode ser um fork privado, um repositório operacional do Workers Builds ou o repositório gerado pelo Deploy Button
+- `origin` só deve ser usado para push após confirmação explícita do operador
+- a IA nunca deve trocar, remover ou recriar bindings reais durante atualização
+- a IA nunca deve copiar `wrangler.toml` por cima de `wrangler.local.toml`
+- se houver conflito em `wrangler.toml`, `wrangler.local.toml`, `.dev.vars`, `.env*`, bindings D1, `database_id`, routes, variables ou secrets, parar e entregar handoff manual
+
+Bindings e configuração operacional protegidos:
+
+- binding D1 `DB`
+- `[[d1_databases]]`
+- `database_name` e `database_id` reais
+- `wrangler.local.toml`
+- `.dev.vars` e `.env*`
+- variables e secrets configurados no dashboard da Cloudflare
+- domínio, routes, workers.dev, preview URLs e cron da instância operada
+
 ## Como interpretar pedidos
+
+Use `docs/OPERACAO-IA.md` como contrato de intenções aceitas, limites de automação e checkpoints manuais.
 
 Mapeie o pedido do usuário para uma destas intenções antes de agir:
 
@@ -96,7 +128,7 @@ Métodos aceitos:
 Essa resposta muda:
 
 - se a migration remota será executada por CLI ou só orientada
-- se a atualização depende de `git pull` local, push para GitHub ou configuração de painel
+- se a atualização depende de busca no upstream oficial, push para GitHub ou configuração de painel
 - onde ficam os valores reais de Cloudflare: `wrangler.local.toml`, dashboard ou repositório operacional gerado
 
 ### Antes de criar banco D1
@@ -161,22 +193,61 @@ O deploy remoto não faz parte deste fluxo. Pare e peça confirmação antes de 
 
 ## Fluxo para atualizar instalações existentes
 
+O runbook canônico deste fluxo é `docs/ATUALIZACAO.md`. A seção abaixo é o resumo obrigatório para a IA quando o pedido for `Atualizar o Projeto`.
+
 Quando o pedido for `Atualizar o Projeto`, a IA deve:
 
 1. rodar `git status --short`
-2. identificar mudanças locais que precisam ser preservadas
-3. preservar explicitamente:
+2. rodar `git branch --show-current`
+3. rodar `git remote -v`
+4. identificar mudanças locais que precisam ser preservadas
+5. preservar explicitamente:
    - `wrangler.local.toml` (pode conter `database_id` real)
    - `.dev.vars` e `.env*` locais
    - `dist/` gerado localmente, quando o operador depender dele
-4. verificar como o projeto publica
-5. se estiver seguro, rodar `git pull --ff-only`
-6. rodar `npm install`
-7. rodar `npm run dev-init`
-8. rodar `npm run build`
-9. rodar `npm run typecheck`
-10. rodar `npm test`
-11. aplicar migrations remotas e publicar apenas se o método de deploy permitir
+   - bindings D1, routes, variables, secrets e IDs reais da instância
+6. verificar como o projeto publica
+7. garantir que existe um remoto `upstream` apontando para `https://github.com/vitorgfaustino/lockbrief.git`
+8. se `upstream` não existir, criar:
+
+```bash
+git remote add upstream https://github.com/vitorgfaustino/lockbrief.git
+```
+
+9. se `upstream` existir mas apontar para outro lugar, parar e pedir confirmação antes de alterar o remoto
+10. buscar o upstream oficial:
+
+```bash
+git fetch upstream --tags --prune
+```
+
+11. revisar quais arquivos mudariam sem expor valores sensíveis:
+
+```bash
+git diff --name-only HEAD..upstream/main
+git log --oneline HEAD..upstream/main
+```
+
+12. se aparecer arquivo de configuração operacional, revisar com cuidado e não colar no chat qualquer saída que contenha IDs reais, tokens ou secrets
+13. se estiver seguro, aplicar somente fast-forward:
+
+```bash
+git merge --ff-only upstream/main
+```
+
+14. se o fast-forward falhar, parar e entregar handoff; não usar `reset --hard`, `checkout --`, `clean`, merge com conflito ou rebase automático
+15. rodar `npm install`
+16. rodar `npm run dev-init`
+17. rodar `npm run build`
+18. rodar `npm run typecheck`
+19. rodar `npm test`
+20. aplicar migrations remotas e publicar apenas se o método de deploy permitir
+
+Regra específica de configuração:
+
+- deploy manual privado usa `wrangler.local.toml`; a atualização não deve sobrescrever esse arquivo
+- Workers Builds/GitHub e Deploy Button podem ter configuração operacional no painel ou no repositório gerado; a IA não deve trocar bindings, `database_id`, variables ou secrets sem confirmação explícita
+- se a atualização do upstream alterar `wrangler.toml`, tratar como mudança no template público e avaliar manualmente se alguma alteração precisa ser refletida na configuração privada
 
 ## Modos de publicação
 
@@ -295,6 +366,8 @@ A IA deve parar e entregar handoff quando a tarefa depender de:
 - `docs/SEGURANCA.md`
 - `docs/PRIVACIDADE.md`
 - `docs/IMPLANTACAO.md`
+- `docs/ATUALIZACAO.md`
+- `docs/OPERACAO-IA.md`
 - `docs/FUNCIONAL.md`
 - `docs/COMPORTAMENTO.md`
 - `build-client.mjs`
@@ -353,6 +426,29 @@ Testes:
 
 ```bash
 npm test
+```
+
+Atualizar pelo upstream oficial:
+
+```bash
+git status --short
+git branch --show-current
+git remote -v
+git remote get-url upstream
+git fetch upstream --tags --prune
+git diff --name-only HEAD..upstream/main
+git merge --ff-only upstream/main
+npm install
+npm run dev-init
+npm run build
+npm run typecheck
+npm test
+```
+
+Se `git remote get-url upstream` falhar porque o remoto não existe, crie antes:
+
+```bash
+git remote add upstream https://github.com/vitorgfaustino/lockbrief.git
 ```
 
 Deploy CLI manual:

@@ -24,6 +24,17 @@ Este repositorio usa documentacao viva. Qualquer agente que altere codigo, plano
 - Se o Deploy Button criar ou atualizar um repositorio GitHub com IDs reais de recursos provisionados, esse repositorio deve ser tratado como operacional. Se a politica for nao publicar IDs, mantenha esse repositorio privado ou remova os IDs antes de qualquer publicacao.
 - Se uma mudanca exigir dado operacional real para funcionar, documente o passo manual; nao simule nem grave o valor no repositorio.
 
+## Operacao guiada por IA e atualizacao
+
+- `AI-START.md` e a entrada unica para agentes de IA.
+- `docs/OPERACAO-IA.md` define intencoes aceitas, limites de automacao e checkpoints manuais.
+- `docs/ATUALIZACAO.md` e o runbook canonico para atualizar instalacoes existentes.
+- Para atualizacoes, trate `https://github.com/vitorgfaustino/lockbrief.git` como upstream oficial.
+- Nao assuma que `origin` aponta para o projeto oficial; ele pode ser fork, repositorio operacional privado, Workers Builds ou repositorio gerado pelo Deploy Button.
+- Preserve `wrangler.local.toml`, `.dev.vars`, `.env*`, bindings D1, `database_id`, variables, secrets, routes e configuracoes reais do dashboard.
+- Nao copie `wrangler.toml` por cima de `wrangler.local.toml`.
+- Se a atualizacao exigir alterar binding, secret, variable, route, dominio, D1 remoto ou repositorio operacional com IDs reais, pare e entregue handoff manual.
+
 ## Matriz de sincronizacao
 
 - Produto e UX:
@@ -36,6 +47,10 @@ Este repositorio usa documentacao viva. Qualquer agente que altere codigo, plano
   atualizar `docs/PRIVACIDADE.md`
 - Setup, deploy, migracoes e operacao:
   atualizar `docs/IMPLANTACAO.md`
+- Atualizacao de instalacoes existentes:
+  atualizar `docs/ATUALIZACAO.md`
+- Operacao guiada por IA, intencoes aceitas ou checkpoints:
+  atualizar `docs/OPERACAO-IA.md` e `AI-START.md`
 - Decisao estrutural ampla ou mudanca de direcao:
   atualizar README, `AI-START.md` e os documentos correspondentes em `docs/`
 
@@ -65,6 +80,10 @@ Este repositorio usa documentacao viva. Qualquer agente que altere codigo, plano
   Atualizar `docs/PRIVACIDADE.md`.
 - Algum passo de setup, deploy ou operacao mudou?
   Atualizar `docs/IMPLANTACAO.md`.
+- Algum passo de atualizacao por upstream mudou?
+  Atualizar `docs/ATUALIZACAO.md`.
+- Alguma regra de operacao por IA mudou?
+  Atualizar `docs/OPERACAO-IA.md` e `AI-START.md`.
 - A decisao altera a direcao do projeto?
   Atualizar README, `AI-START.md` e os documentos correspondentes em `docs/`.
 

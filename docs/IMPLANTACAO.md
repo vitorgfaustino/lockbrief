@@ -38,6 +38,73 @@ O comando `dev-init` aplica migrations no D1 local usando o binding `DB` e o tem
 
 Acesse `http://localhost:8787`.
 
+## Atualizar instalação existente
+
+Runbook canônico: `docs/ATUALIZACAO.md`. Esta seção resume o fluxo operacional para deploy e implantação.
+
+O upstream oficial do LockBrief é:
+
+```text
+https://github.com/vitorgfaustino/lockbrief.git
+```
+
+Use este upstream como fonte de atualização mesmo quando `origin` apontar para um fork, repositório operacional privado, Workers Builds ou repositório gerado pelo Deploy Button.
+
+Fluxo seguro:
+
+```bash
+git status --short
+git branch --show-current
+git remote -v
+git remote get-url upstream
+```
+
+Se o comando `git remote get-url upstream` falhar porque o remoto não existe, crie o remoto canônico:
+
+```bash
+git remote add upstream https://github.com/vitorgfaustino/lockbrief.git
+```
+
+Depois busque e aplique somente fast-forward:
+
+```bash
+git fetch upstream --tags --prune
+git diff --name-only HEAD..upstream/main
+git log --oneline HEAD..upstream/main
+git merge --ff-only upstream/main
+npm install
+npm run dev-init
+npm run build
+npm run typecheck
+npm test
+```
+
+Se o remoto `upstream` já existir, confirme que ele aponta para `https://github.com/vitorgfaustino/lockbrief.git`. Se apontar para outro lugar, pare e corrija somente com confirmação explícita do operador.
+
+Arquivos e valores protegidos durante atualização:
+
+- `wrangler.local.toml`
+- `.dev.vars` e `.env*`
+- `database_id` real
+- binding D1 `DB` e bloco `[[d1_databases]]`
+- variables, secrets, routes, domínio e configurações reais no dashboard da Cloudflare
+- repositório operacional gerado pelo Deploy Button, quando contiver IDs reais
+
+Regras:
+
+1. Não use `git pull` cego de `origin` para atualizar o produto. `origin` pode ser operacional.
+2. Não copie `wrangler.toml` por cima de `wrangler.local.toml`.
+3. Não altere bindings, IDs reais, secrets ou variables como parte de uma atualização de código.
+4. Não use `git reset --hard`, `git checkout --`, `git clean`, rebase automático ou merge com conflito para "forçar" atualização.
+5. Se `git merge --ff-only upstream/main` falhar, resolva como divergência operacional e faça handoff manual.
+6. Se o upstream alterar `wrangler.toml`, trate a mudança como atualização do template público; reflita algo na configuração privada somente depois de revisar impacto em D1, cron, routes, workers.dev e preview URLs.
+
+Após validar localmente, publique conforme o método da instância:
+
+- Wrangler local: manter `wrangler.local.toml` e usar `npm run d1:migrate:remote:private` seguido de `npx wrangler deploy --config wrangler.local.toml`.
+- Workers Builds/GitHub: fazer push apenas para o repositório operacional correto, depois de confirmar que nenhum ID real será exposto em repositório público.
+- Deploy Button: atualizar o repositório gerado buscando o upstream oficial e preservar a configuração provisionada pela Cloudflare.
+
 ## Deploy manual privado com Wrangler
 
 Use este fluxo quando a regra for não gravar nenhum ID operacional no GitHub.
@@ -176,6 +243,7 @@ Executa 26 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`
 - [ ] `npm test` passa com 26/26.
 - [ ] `npx wrangler deploy --dry-run --outdir /tmp/lockbrief-dry-run` empacota o Worker.
 - [ ] `CHANGELOG.md` e `RELEASE_NOTES.md` estão atualizados.
+- [ ] `AI-START.md`, `docs/ATUALIZACAO.md` e `docs/OPERACAO-IA.md` estão alinhados se houve mudança de atualização, deploy ou operação por IA.
 
 ## Checklist de validação pós-deploy
 

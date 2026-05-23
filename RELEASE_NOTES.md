@@ -40,6 +40,8 @@ Esta release melhora o fluxo de abertura de segredos com uma confirmação obrig
 - Não há migração de D1.
 - Não há novo secret, binding ou variável de ambiente.
 - O deploy continua usando os mesmos fluxos: local, Wrangler privado, Workers Builds/GitHub e Deploy Button.
+- Atualizações de instâncias existentes devem buscar o upstream oficial `https://github.com/vitorgfaustino/lockbrief.git` sem alterar `wrangler.local.toml`, bindings, `database_id`, variables ou secrets existentes.
+- `docs/ATUALIZACAO.md` e `docs/OPERACAO-IA.md` documentam o fluxo de atualização por IA guiada, os limites de automação e os checkpoints manuais.
 - Instâncias existentes podem atualizar código sem alterar tabela, cron, TTL ou limites.
 - Para reduzir consumo do plano gratuito por bots, configure regras de segurança da Cloudflare antes do Worker.
 
