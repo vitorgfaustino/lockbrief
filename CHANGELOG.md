@@ -6,9 +6,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 
 ---
 
-## [Não publicado]
+## [1.1.1] — 2026-05-29
 
 ### Alterado
+- Redesign completo de interface visual do sistema seguindo o SKILL.md.
+- Implementação de paleta dark premium baseada em tons Zinc/Slate 950 com grade sutil e radial glow superior ciano neon.
+- Refinamento do efeito de vidro (glassmorphism) nos cards, incluindo bordas translúcidas, sombra interna reflexiva e cantos arredondados consistentes (cards com 12px, inputs e botões com 8px).
+- Transições de tela animadas com efeito de fade-in e slide-up suave de 250ms ao alternar visualizações.
+- Botões de ações, toggles, segmented controls e caixas de segredo redesenhados com micro-interações táteis no clique e hover states com spring dinâmico.
 - Aplicação agora publica manifesto PWA, service worker online-first e ícones quadrados para instalação em celulares e desktops compatíveis.
 - Rodapé das páginas públicas agora exibe link explícito e compacto para o código-fonte AGPL-3.0.
 - Tela inicial removeu o subtítulo introdutório e passou a usar o título mais direto "Crie um segredo seguro.".

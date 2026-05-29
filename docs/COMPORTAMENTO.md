@@ -105,7 +105,7 @@
 ## Consistência visual
 
 - Botões principais usam ícones planos alinhados à função: cadeado para criar, olho para revelar, cópia para copiar, casa para voltar, adição para novo segredo.
-- Cards usam raio máximo de 8px e espaçamento consistente entre desktop e mobile.
+- Cards usam raio de 12px, enquanto botões e inputs usam raio de 8px, mantendo o espaçamento consistente entre desktop e mobile.
 - A interface evita efeitos decorativos pesados; o fundo usa textura discreta e o acento ciano fica restrito a foco, ações e informação técnica.
 - Campos, labels e descrições usam contraste suficiente para leitura em fundo escuro sem alterar a paleta visual do projeto.
 - Em mobile, campos de resultado usam tamanho de texto maior, podem quebrar linhas internamente e mantêm o botão de copiar abaixo do valor quando não houver largura suficiente.

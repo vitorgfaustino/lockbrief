@@ -2,6 +2,8 @@ node_modules/
 dist/
 .wrangler/
 *.log
+SKILL.md
+CLAUDE.md
 
 # Environment
 .env
