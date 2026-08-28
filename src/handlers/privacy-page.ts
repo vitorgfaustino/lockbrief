@@ -45,7 +45,7 @@ function renderHtml(): string {
           <header class="privacy-hero">
             <span class="privacy-kicker">Privacidade</span>
             <h1 class="privacy-title">Política de Privacidade</h1>
-            <p class="privacy-lead">O LockBrief foi projetado com <strong>Privacy by Design</strong>. O servidor não recebe o segredo em texto claro, não recebe a chave de descriptografia e não constrói perfis sobre quem usa o sistema.</p>
+            <p class="privacy-lead">O LockBrief foi projetado com <strong>Privacy by Design</strong>. No cliente oficial e não modificado, o backend não recebe o segredo em texto claro nem a chave de descriptografia, e a aplicação não constrói perfis sobre quem usa o sistema.</p>
           </header>
 
           <section class="privacy-section" aria-labelledby="privacy-never-title">
@@ -90,13 +90,24 @@ function renderHtml(): string {
               <span class="privacy-badge privacy-badge-accent">Retenção</span>
               <h2 id="privacy-retention-title" class="privacy-section-title">Quanto tempo os dados existem</h2>
             </div>
-            <p class="privacy-body">A retenção é estritamente operacional. O sistema existe para manter o envelope apenas pelo tempo necessário para leitura e expiração automática.</p>
+            <p class="privacy-body">A retenção no banco ativo é estritamente operacional. O sistema mantém o envelope disponível apenas pelo tempo necessário para leitura e expiração automática.</p>
             <ul class="privacy-list privacy-list-accent">
-              <li class="privacy-list-item">Segredos de leitura única são removidos quando o envelope criptografado é entregue ao navegador.</li>
+              <li class="privacy-list-item">Segredos de leitura única são removidos do banco ativo quando o envelope criptografado é entregue ao navegador.</li>
               <li class="privacy-list-item">Segredos com mais de uma leitura permanecem disponíveis apenas até o prazo de expiração configurado.</li>
               <li class="privacy-list-item">Registros expirados são limpos periodicamente por tarefa automática.</li>
               <li class="privacy-list-item">Depois do consumo ou da expiração, o conteúdo não é recuperável pelo aplicativo.</li>
+              <li class="privacy-list-item">O D1 mantém Time Travel gerenciado pela Cloudflare por até 7 dias no plano gratuito ou 30 dias no pago. Um operador autorizado pode restaurar um estado anterior, que continua contendo somente o envelope criptografado e metadados.</li>
             </ul>
+          </section>
+
+          <section class="privacy-section" aria-labelledby="privacy-observability-title">
+            <div class="privacy-section-head">
+              <span class="privacy-badge privacy-badge-neutral">Infraestrutura</span>
+              <h2 id="privacy-observability-title" class="privacy-section-title">Rede e observabilidade</h2>
+            </div>
+            <p class="privacy-body">A aplicação não cria contas, cookies de analytics ou identificadores persistentes. A Cloudflare ainda processa IP e metadados técnicos para entregar e proteger o serviço.</p>
+            <p class="privacy-body">Os limites de abuso não persistem IP. Para conter repetição por recurso, o Worker envia ao contador da Cloudflare somente um novo hash SHA-256 derivado de rota e <code>idHash</code>, dentro de uma janela configurada de 60 segundos.</p>
+            <p class="privacy-body">A configuração padrão amostra 10% das invocações do Worker. Esses logs podem conter método, URL, resposta e metadados relacionados. O código não registra conteúdo, payload, <code>idHash</code>, chave ou senha; o fragmento <code>#...</code> não é enviado na requisição HTTP.</p>
           </section>
 
           <section class="privacy-section" aria-labelledby="privacy-lgpd-title">
@@ -123,7 +134,7 @@ function renderHtml(): string {
           <ul class="info-list privacy-side-list">
             <li class="info-item"><span class="info-bullet"></span><div><strong>Criptografia local</strong><p>O segredo é cifrado antes do envio. O backend recebe apenas um envelope criptografado.</p></div></li>
             <li class="info-item"><span class="info-bullet"></span><div><strong>Chave fora da requisição</strong><p>A chave de descriptografia fica no fragmento do link e não é enviada ao servidor.</p></div></li>
-            <li class="info-item"><span class="info-bullet"></span><div><strong>Retenção mínima</strong><p>O registro existe apenas até leitura, expiração ou limpeza automática.</p></div></li>
+            <li class="info-item"><span class="info-bullet"></span><div><strong>Retenção mínima no banco ativo</strong><p>O registro deixa de ficar disponível após leitura, expiração ou limpeza automática; o D1 mantém Time Travel criptografado conforme o plano.</p></div></li>
             <li class="info-item"><span class="info-bullet"></span><div><strong>Sem rastreamento</strong><p>Sem contas, cookies de analytics, fingerprinting ou perfil comportamental.</p></div></li>
           </ul>
           <div class="info-divider"></div>

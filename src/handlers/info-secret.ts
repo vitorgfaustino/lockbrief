@@ -7,15 +7,18 @@
 
 import type { Env } from "../router";
 import { safeParseJSON } from "../lib/json";
-import { isRecord, validateIdHash } from "../lib/validation";
+import { validateEnvelope, validateIdHash } from "../lib/validation";
 import { badRequest, notAvailable, tooManyRequests } from "../lib/errors";
 import { nowUnixSeconds } from "../lib/timestamps";
 import { ErrorResult } from "../lib/errors";
-import { checkInfoAllowed } from "../lib/abuse-controls";
+import { checkInfoAllowed, checkResourceAllowed } from "../lib/abuse-controls";
 import { JSON_HEADERS } from "../lib/headers";
+import { readTextBodyWithLimit } from "../lib/request-body";
+
+const MAX_BODY_BYTES = 2048;
 
 export async function handleInfo(request: Request, env: Env): Promise<Response> {
-  if (!checkInfoAllowed()) {
+  if (!(await checkInfoAllowed(env))) {
     return jsonError(tooManyRequests());
   }
 
@@ -24,10 +27,11 @@ export async function handleInfo(request: Request, env: Env): Promise<Response> 
     return jsonError(badRequest());
   }
 
-  const bodyText = await request.text();
-  if (bodyText.length > 2048) {
+  const bodyResult = await readTextBodyWithLimit(request, MAX_BODY_BYTES);
+  if (!bodyResult.ok) {
     return jsonError(badRequest());
   }
+  const bodyText = bodyResult.text;
 
   const parsed = safeParseJSON(bodyText);
   if (!parsed.ok) {
@@ -44,6 +48,10 @@ export async function handleInfo(request: Request, env: Env): Promise<Response> 
     return jsonError(badRequest());
   }
 
+  if (!(await checkResourceAllowed(env, "info", idHash))) {
+    return jsonError(tooManyRequests());
+  }
+
   const now = nowUnixSeconds();
 
   const row = await env.DB.prepare(
@@ -58,14 +66,11 @@ export async function handleInfo(request: Request, env: Env): Promise<Response> 
   }
 
   const payloadParsed = safeParseJSON(row.encrypted_payload);
-  if (!payloadParsed.ok || !isRecord(payloadParsed.data)) {
+  if (!payloadParsed.ok || !validateEnvelope(payloadParsed.data)) {
     return jsonError(notAvailable());
   }
 
   const kdf = payloadParsed.data.kdf;
-  if (kdf !== "none" && kdf !== "PBKDF2-SHA256+HKDF-SHA256") {
-    return jsonError(notAvailable());
-  }
   const requiresPassword = kdf !== "none";
 
   return new Response(JSON.stringify({
@@ -81,6 +86,9 @@ export async function handleInfo(request: Request, env: Env): Promise<Response> 
 function jsonError(err: ErrorResult): Response {
   return new Response(JSON.stringify({ error: err.error }), {
     status: err.status,
-    headers: JSON_HEADERS,
+    headers: {
+      ...JSON_HEADERS,
+      ...(err.status === 429 ? { "Retry-After": "60" } : {}),
+    },
   });
 }

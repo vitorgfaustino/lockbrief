@@ -4,19 +4,21 @@
 
 | Dado | Armazenamento | Duração | Finalidade |
 |---|---|---|---|
-| `id_hash` (SHA-256 do ID) | D1 | Até consumo ou expiração | Identificação do segredo |
-| `encrypted_payload` (envelope) | D1 | Até consumo ou expiração | Retorno do segredo criptografado |
+| `id_hash` (SHA-256 do ID) | D1 ativo | Até consumo ou expiração | Identificação do segredo |
+| `encrypted_payload` (envelope) | D1 ativo | Até consumo ou expiração | Retorno do segredo criptografado |
 | `expires_at` | D1 | Até cleanup | Expiração automática |
 | `created_at` | D1 | Até consumo ou expiração | Auditoria técnica interna |
 | `consumed_at` | D1 | Até cleanup | Coordenação de consumo único |
 | `consume_token` | D1 | Efêmero (durante consumo) | Guarda de corrida transacional |
 | `requiresPassword` | Não persistido separadamente | Apenas na resposta de `/api/info` | Indicar se a UI deve preparar campo de senha após confirmação |
-| User-Agent e headers de prefetch | Não persistidos | Apenas durante a requisição | Bloqueio efêmero de bots, crawlers e previews |
+| Método, URL, resposta e metadados de invocação | Workers Logs | Amostra e retenção definidas pela plataforma/plano | Observabilidade operacional da instância |
+| User-Agent e headers de prefetch | Não persistidos pela aplicação em D1 | Apenas durante a requisição | Bloqueio efêmero de bots, crawlers e previews |
+| Hash de `rota:idHash` | Contador gerenciado pelo Workers Rate Limiting API | Janela configurada de 60 segundos; retenção interna é controlada pela Cloudflare | Conter repetição contra uma rota/recurso sem usar IP |
 | Assets públicos do PWA | CacheStorage do navegador | Controlado pelo navegador e pelo service worker | Instalação e carregamento de arquivos estáticos |
 
 ## Dados NÃO coletados
 
-- IP do usuário
+- IP persistido pela aplicação em D1
 - User-Agent persistido
 - Cookies ou tokens de sessão
 - Identificadores de dispositivo
@@ -32,30 +34,33 @@
 
 ## Base técnica de minimização
 
-- O Worker nunca recebe plaintext, chave ou senha adicional.
+- No cliente oficial e não modificado, o Worker nunca recebe plaintext, chave ou senha adicional.
 - A criptografia é feita exclusivamente no navegador do usuário via Web Crypto API.
 - O banco D1 armazena apenas o envelope criptografado e campos estritamente necessários para controle de expiração e consumo.
 - `/api/info` retorna apenas metadados mínimos (`oneTime`, `expiresAt`, `requiresPassword`) e não retorna payload, envelope, chave, senha ou conteúdo.
-- Os abuse controls usam contadores em memória, sem persistência.
+- Os abuse controls combinam contadores em memória com o Workers Rate Limiting API. Não usam IP, cookie, conta ou fingerprint; para limites por recurso, enviam ao binding somente SHA-256 de `rota:idHash`.
 - O bloqueio de bots usa apenas avaliação efêmera de User-Agent e headers de prefetch/preview, sem armazenamento.
 - A limpeza de segredos expirados é automatizada via Cron Trigger.
 - A instalação PWA usa CacheStorage apenas para arquivos públicos estáticos (`client.js`, CSS, manifesto, logo, favicons e ícones). HTML, `/api/*`, payloads, envelopes, chaves, senhas e segredos não são cacheados.
 
 ## Retenção
 
-- Segredos são removidos do D1 imediatamente após o consumo.
+- Segredos são removidos do banco D1 ativo imediatamente após o consumo.
 - Segredos não consumidos são removidos na primeira execução do cleanup após expiração.
 - Sobras criptografadas marcadas como consumidas por fallback são removidas pelo cleanup após margem curta de segurança.
-- Nenhum dado de segredo persiste após o consumo ou expiração.
+- O aplicativo deixa de acessar o registro depois do consumo ou cleanup. Isso não equivale a apagamento físico imediato de toda cópia da infraestrutura.
+- O D1 mantém Time Travel automaticamente. Estados anteriores do banco podem ser restaurados por um operador autorizado por até 7 dias no plano gratuito ou 30 dias no plano pago. Esse histórico contém o envelope criptografado e metadados, não plaintext ou chave.
 - A remoção ou expiração de segredos no servidor não depende do cache PWA, porque o service worker não armazena respostas de API nem envelopes.
 
 ## Observabilidade
 
 - A aplicação não registra logs de conteúdo, IDs, payloads ou dados de usuário.
 - Logs de erro do Worker usam mensagens genéricas, sem interpolar erro interno do D1.
-- Para prover a rede e bloquear ataques de negação de serviço (DDoS), nosso provedor de infraestrutura (Cloudflare) coleta e processa transitoriamente o endereço IP na camada de borda (Edge), geralmente por 24 a 72 horas, para fins de telemetria de WAF e faturamento. A nossa aplicação, por sua vez, jamais persiste IPs, user-agents ou dados de sessão em bancos de dados.
-- A observabilidade do Worker (`observability.enabled = true`) está configurada com `head_sampling_rate = 0.1` (10% das requisições). Isso coleta apenas métricas agregadas de latência e erros, sem incluir corpo de requisição, headers ou payloads. Essa configuração é aceitável sob a política de minimização pois não expõe dados de segredo e permite monitoramento operacional básico.
-- Logs operacionais da plataforma Cloudflare (infraestrutura) podem existir conforme a política da Cloudflare, mas não incluem o conteúdo do fragmento de URL (que não é enviado ao servidor) nem o corpo das requisições.
+- A Cloudflare processa IP, dados de roteamento e outros metadados necessários para entregar e proteger o serviço. A duração e os campos disponíveis dependem do produto, plano e configuração do operador; este projeto não promete uma janela fixa de retenção da plataforma.
+- O Workers Rate Limiting API mantém contadores internos por localidade. A aplicação configura janela de 60 segundos, não consulta esses contadores e não os copia para D1 ou logs próprios; a retenção técnica interna da plataforma não é controlada pelo LockBrief.
+- A observabilidade do Worker (`observability.enabled = true`) usa `head_sampling_rate = 0.1`. Workers Logs pode registrar uma amostra das invocações com método, URL, resposta e metadados relacionados; não se limita a métricas agregadas.
+- O código da aplicação não envia conteúdo, `idHash`, payload, senha ou chave para `console.log`. O fragmento `#...` não integra a requisição HTTP e, portanto, não aparece na URL recebida pelo Worker.
+- O operador deve revisar a configuração e a retenção real de Workers Logs. Se os logs de invocação não forem necessários, deve desabilitá-los explicitamente no `wrangler.toml` operacional.
 
 ## Configuração operacional e GitHub
 
@@ -69,7 +74,7 @@
 
 Esta aplicação foi projetada com Privacy by Design:
 - Minimização de dados como princípio arquitetural.
-- Ausência de dados pessoais identificáveis.
+- Ausência de contas e de identificadores pessoais persistidos deliberadamente pela aplicação.
 - Processamento efêmero sem retenção prolongada.
 - Transparência total sobre o que o servidor acessa.
 

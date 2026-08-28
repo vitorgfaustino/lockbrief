@@ -42,10 +42,15 @@ beforeAll(async () => {
 });
 
 // Helper: executa uma requisição contra o Worker
-async function fetchWorker(path: string, init?: RequestInit): Promise<Response> {
+async function fetchWorker(
+  path: string,
+  init?: RequestInit,
+  envOverrides: Record<string, unknown> = {}
+): Promise<Response> {
   const req = new Request(`http://localhost${path}`, init);
   const ctx = createExecutionContext();
-  const res = await worker.fetch(req, env as any, ctx);
+  const requestEnv = { ...(env as any), ...envOverrides };
+  const res = await worker.fetch(req, requestEnv, ctx);
   await waitOnExecutionContext(ctx);
   return res;
 }
@@ -155,7 +160,7 @@ describe("LockBrief Worker", () => {
 
   // ── POST /api/store ───────────────────────────────────────────
   describe("POST /api/store", () => {
-    const validPayload = JSON.stringify({ v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "encrypted_data_here", kdf: "none", salt: null });
+    const validPayload = JSON.stringify({ v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "none", salt: null });
     const validBody = { idHash: "", payload: validPayload, ttl: 3600 };
 
     it("cria segredo com dados validos", async () => {
@@ -170,11 +175,46 @@ describe("LockBrief Worker", () => {
       expect(data.ok).toBe(true);
     });
 
+    it("aceita envelope v2 com parametros de KDF explicitos", async () => {
+      const payload = JSON.stringify({
+        v: 2,
+        alg: "AES-GCM-256",
+        iv: "abcdefghijklmnop",
+        ciphertext: "AAAAAAAAAAAAAAAAAAAAAA",
+        kdf: "PBKDF2-SHA256+HKDF-SHA256",
+        salt: "AAAAAAAAAAAAAAAAAAAAAA",
+        kdfParams: {
+          iterations: 210000,
+          hkdfInfo: "lockbrief:v2:kdf",
+        },
+      });
+      const res = await fetchWorker("/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash: randomIdHash(), payload, ttl: 3600 }),
+      });
+
+      expect(res.status).toBe(201);
+    });
+
     it("rejeita idHash com formato invalido (400)", async () => {
       const res = await fetchWorker("/api/store", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idHash: "invalido", payload: validPayload, ttl: 3600 }),
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it("rejeita idHash base64url nao canonico (400)", async () => {
+      const res = await fetchWorker("/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idHash: `${"A".repeat(42)}B`,
+          payload: validPayload,
+          ttl: 3600,
+        }),
       });
       expect(res.status).toBe(400);
     });
@@ -202,13 +242,38 @@ describe("LockBrief Worker", () => {
       });
       expect(res.status).toBe(400);
     });
+
+    it.each([
+      ["iv fora de base64url", { v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmno+", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "none", salt: null }],
+      ["ciphertext fora de base64url", { v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "encrypted=data", kdf: "none", salt: null }],
+      ["ciphertext com comprimento base64url impossivel", { v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "a", kdf: "none", salt: null }],
+      ["ciphertext base64url nao canonico", { v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAB", kdf: "none", salt: null }],
+      ["salt fora de base64url", { v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "PBKDF2-SHA256+HKDF-SHA256", salt: "abcdefghijklmnopqrstu+" }],
+      ["KDF v2 sem parametros", { v: 2, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "PBKDF2-SHA256+HKDF-SHA256", salt: "AAAAAAAAAAAAAAAAAAAAAA" }],
+      ["iteracoes v2 fora da allowlist", { v: 2, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "PBKDF2-SHA256+HKDF-SHA256", salt: "AAAAAAAAAAAAAAAAAAAAAA", kdfParams: { iterations: 999999999, hkdfInfo: "lockbrief:v2:kdf" } }],
+      ["dominio HKDF v2 desconhecido", { v: 2, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "PBKDF2-SHA256+HKDF-SHA256", salt: "AAAAAAAAAAAAAAAAAAAAAA", kdfParams: { iterations: 210000, hkdfInfo: "outro-dominio" } }],
+      ["parametro KDF v2 extra", { v: 2, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "PBKDF2-SHA256+HKDF-SHA256", salt: "AAAAAAAAAAAAAAAAAAAAAA", kdfParams: { iterations: 210000, hkdfInfo: "lockbrief:v2:kdf", extra: true } }],
+      ["KDF v2 ausente com parametros presentes", { v: 2, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "none", salt: null, kdfParams: { iterations: 210000, hkdfInfo: "lockbrief:v2:kdf" } }],
+    ])("rejeita envelope com %s (400)", async (_label, envelope) => {
+      const res = await fetchWorker("/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          idHash: randomIdHash(),
+          payload: JSON.stringify(envelope),
+          ttl: 3600,
+        }),
+      });
+
+      expect(res.status).toBe(400);
+    });
   });
 
   // ── POST /api/fetch ───────────────────────────────────────────
   describe("POST /api/fetch (leitura unica)", () => {
     it("consome segredo e retorna payload", async () => {
       const idHash = randomIdHash();
-      const payload = JSON.stringify({ v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "encrypted_data_here", kdf: "none", salt: null });
+      const payload = JSON.stringify({ v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "none", salt: null });
 
       // Store
       await fetchWorker("/api/store", {
@@ -235,7 +300,7 @@ describe("LockBrief Worker", () => {
 
     it("retorna 404 para segredo ja consumido", async () => {
       const idHash = randomIdHash();
-      const payload = JSON.stringify({ v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "encrypted_data_here", kdf: "none", salt: null });
+      const payload = JSON.stringify({ v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "none", salt: null });
 
       await fetchWorker("/api/store", {
         method: "POST",
@@ -280,7 +345,7 @@ describe("LockBrief Worker", () => {
 
     it("oneTime=true: fetch consome e segundo fetch retorna 404 (simula fechar navegador)", async () => {
       const idHash = randomIdHash();
-      const payload = JSON.stringify({ v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "encrypted_data_here", kdf: "none", salt: null });
+      const payload = JSON.stringify({ v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "none", salt: null });
 
       // Store com oneTime=true (default)
       await fetchWorker("/api/store", {
@@ -311,7 +376,7 @@ describe("LockBrief Worker", () => {
   describe("POST /api/info", () => {
     it("retorna metadados sem consumir o segredo", async () => {
       const idHash = randomIdHash();
-      const payload = JSON.stringify({ v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "encrypted_data_here", kdf: "none", salt: null });
+      const payload = JSON.stringify({ v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "none", salt: null });
 
       await fetchWorker("/api/store", {
         method: "POST",
@@ -346,9 +411,9 @@ describe("LockBrief Worker", () => {
         v: 1,
         alg: "AES-GCM-256",
         iv: "abcdefghijklmnop",
-        ciphertext: "encrypted_data_here",
+        ciphertext: "AAAAAAAAAAAAAAAAAAAAAA",
         kdf: "PBKDF2-SHA256+HKDF-SHA256",
-        salt: "abcdefghijklmnopqrstuv",
+        salt: "AAAAAAAAAAAAAAAAAAAAAA",
       });
 
       await fetchWorker("/api/store", {
@@ -381,9 +446,42 @@ describe("LockBrief Worker", () => {
       expect(fetchRes.status).toBe(200);
     });
 
+    it("reconhece senha em envelope v2 sem expor parametros", async () => {
+      const idHash = randomIdHash();
+      const payload = JSON.stringify({
+        v: 2,
+        alg: "AES-GCM-256",
+        iv: "abcdefghijklmnop",
+        ciphertext: "AAAAAAAAAAAAAAAAAAAAAA",
+        kdf: "PBKDF2-SHA256+HKDF-SHA256",
+        salt: "AAAAAAAAAAAAAAAAAAAAAA",
+        kdfParams: {
+          iterations: 210000,
+          hkdfInfo: "lockbrief:v2:kdf",
+        },
+      });
+
+      await fetchWorker("/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash, payload, ttl: 3600 }),
+      });
+
+      const res = await fetchWorker("/api/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash }),
+      });
+
+      expect(res.status).toBe(200);
+      const data = await res.json() as any;
+      expect(data.requiresPassword).toBe(true);
+      expect(data.kdfParams).toBeUndefined();
+    });
+
     it("oneTime=false: fetch nao consome, segundo fetch retorna 200", async () => {
       const idHash = randomIdHash();
-      const payload = JSON.stringify({ v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "encrypted_data_here", kdf: "none", salt: null });
+      const payload = JSON.stringify({ v: 1, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "none", salt: null });
 
       await fetchWorker("/api/store", {
         method: "POST",
@@ -433,6 +531,24 @@ describe("LockBrief Worker", () => {
       });
       expect(res.status).toBe(400);
     });
+
+    it("rejeita body acima do limite em /api/fetch", async () => {
+      const res = await fetchWorker("/api/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "x".repeat(2049),
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it("rejeita body acima do limite em /api/info", async () => {
+      const res = await fetchWorker("/api/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "x".repeat(2049),
+      });
+      expect(res.status).toBe(400);
+    });
   });
 
   // ── Bots e abuso ──────────────────────────────────────────────
@@ -467,6 +583,23 @@ describe("LockBrief Worker", () => {
       expect(data.error).toBe("invalid_request");
     });
 
+    it("respeita rate limiter distribuido e informa Retry-After", async () => {
+      const res = await fetchWorker("/api/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash: randomIdHash() }),
+      }, {
+        RESOURCE_RATE_LIMITER: {
+          limit: async () => ({ success: false }),
+        },
+      });
+
+      expect(res.status).toBe(429);
+      expect(res.headers.get("Retry-After")).toBe("60");
+      const data = await res.json() as any;
+      expect(data.error).toBe("invalid_request");
+    });
+
     it("aplica rate limit em /api/info", async () => {
       let sawRateLimit = false;
 
@@ -478,6 +611,7 @@ describe("LockBrief Worker", () => {
         });
         if (res.status === 429) {
           sawRateLimit = true;
+          expect(res.headers.get("Retry-After")).toBe("60");
           const data = await res.json() as any;
           expect(data.error).toBe("invalid_request");
           break;

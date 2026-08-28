@@ -3,6 +3,7 @@
 ## Pré-requisitos
 
 - Node.js `>=22.12.0` para alinhar com Wrangler, Miniflare, Vite e CI.
+- npm `>=11.16.0` para aplicar `allowScripts` com bloqueio estrito de scripts de instalação não revisados.
 - Conta Cloudflare.
 - Wrangler via dependência do projeto (`npx wrangler`) ou instalação global.
 
@@ -12,7 +13,7 @@ O repositório público nunca deve conter configuração operacional real.
 
 | Arquivo/local | Vai para GitHub? | Uso |
 |---|---:|---|
-| `wrangler.toml` | Sim | Template público para CI, Workers Builds e Deploy Button. Contém placeholder de `database_id`. |
+| `wrangler.toml` | Sim | Template público para CI, Workers Builds e Deploy Button. Contém placeholder de `database_id` e namespaces públicos reservados para rate limiting. |
 | `wrangler.local.toml` | Não | Configuração privada para deploy manual com `database_id` real. |
 | `.dev.vars`, `.env*` | Não | Variáveis e secrets locais, se existirem. |
 | Dashboard Cloudflare | Não | Bindings, variables e secrets de uma instância operada pelo usuário. |
@@ -104,6 +105,7 @@ Arquivos e valores protegidos durante atualização:
 - `.dev.vars` e `.env*`
 - `database_id` real
 - binding D1 `DB` e bloco `[[d1_databases]]`
+- bindings `STORE_RATE_LIMITER`, `READ_RATE_LIMITER` e `RESOURCE_RATE_LIMITER`
 - variables, secrets, routes, domínio e configurações reais no dashboard da Cloudflare
 - repositório operacional gerado pelo Deploy Button, quando contiver IDs reais
 
@@ -166,6 +168,31 @@ O `npm run deploy` executa migrations remotas e publica o Worker usando o `wrang
 
 Se o repositório operacional for público, não faça commit de `database_id` real, secrets ou variáveis privadas.
 
+## Cadeia de fornecimento e CI
+
+A CI aplica os seguintes gates antes de aceitar uma mudança:
+
+1. bootstrap fixo do npm 11.16.0 sem scripts e instalação reprodutível com `npm ci`;
+2. auditoria de dependências com bloqueio em severidade alta ou crítica;
+3. verificação de whitespace com `git diff --check`;
+4. typecheck, build do cliente e suíte de integração.
+
+As Actions de terceiros são referenciadas por SHA imutável, com a versão legível em comentário. O job de qualidade possui apenas permissão `contents: read`, não persiste credenciais do checkout e é encerrado por timeout. Como o projeto não aceita contribuições externas, esse job executa somente em pushes, PRs do mantenedor e PRs do Dependabot; código de PR externo não entra na etapa `npm ci`.
+
+O Dependabot verifica semanalmente dependências npm e GitHub Actions. PRs criados por `dependabot[bot]` não são fechados pelo workflow de PR externo, mas nenhuma atualização é mesclada ou publicada automaticamente: CI e revisão humana continuam obrigatórias.
+
+Ao atualizar dependências manualmente:
+
+```bash
+npm install
+npm audit --audit-level=high
+npm run typecheck
+npm run build
+npm test
+```
+
+Revise `.npmrc`, `package.json` e `package-lock.json` juntos. O projeto exige npm 11.16.0 ou superior, e `.npmrc` ativa `strict-allow-scripts=true`. O campo `allowScripts` aprova por nome e versão somente os scripts de instalação necessários de `esbuild` e `workerd`, e nega o script opcional de `fsevents`; uma versão executável sem decisão explícita faz a instalação falhar. Não use `--force`, `--legacy-peer-deps`, `--dangerously-allow-all-scripts`, `npm approve-scripts --all` ou uma aprovação sem versão para ocultar conflitos ou ampliar a execução de scripts; resolva a combinação compatível e valide o Worker localmente.
+
 ## Deploy Button
 
 O botão "Deploy to Cloudflare" usa o fluxo oficial da Cloudflare para Workers.
@@ -189,7 +216,7 @@ O link **Código AGPL-3.0** da instância deve apontar para essa fonte correspon
 
 ## Variáveis e secrets
 
-O LockBrief v1.1.0 não exige secrets de runtime.
+O LockBrief na versão atual não exige secrets de runtime.
 
 Os limites de payload e TTL estão definidos no código e documentados em `docs/FUNCIONAL.md`. Não há necessidade de publicar `[vars]` reais no GitHub.
 
@@ -232,18 +259,75 @@ O Worker executa limpeza de segredos expirados a cada 30 minutos via Cron Trigge
 crons = ["*/30 * * * *"]
 ```
 
+O cleanup remove registros do banco ativo. O D1 mantém Time Travel automaticamente por até 7 dias no plano gratuito ou 30 dias no pago; o operador deve considerar essa retenção no aviso de privacidade da instância e no controle de acesso à conta Cloudflare.
+
+## Observabilidade e logs
+
+O template público habilita Workers Logs com amostragem de 10%. Logs de invocação podem conter método, URL, resposta e metadados relacionados. O código não registra bodies, `idHash`, payloads, chaves ou senhas, mas o operador deve revisar a retenção e o acesso aos logs no plano contratado.
+
+Quando logs de invocação não forem necessários, desabilite-os na configuração operacional protegida e valide a perda de diagnóstico antes do deploy. Mudanças nessa configuração afetam privacidade e operação e devem ser registradas na política da instância.
+
 ## Redução de tráfego de bots
 
 O código bloqueia bots, crawlers e previews de links conhecidos assim que a requisição entra no Worker. Esse bloqueio reduz trabalho de aplicação e consultas D1, mas **não impede que a requisição conte como Worker request**.
 
-Para economizar o plano gratuito contra bots, configure controles antes do Worker na conta Cloudflare:
+O LockBrief não exige WAF pago. O template configura três bindings do Workers Rate Limiting API:
 
-1. Ative recursos gratuitos/inclusos de mitigação de bots disponíveis para a conta.
-2. Crie uma regra de segurança para bloquear User-Agents de crawlers e previews que não precisam acessar a aplicação.
+| Binding | Limite | Chave |
+|---|---:|---|
+| `STORE_RATE_LIMITER` | 30/min | rota `store` |
+| `READ_RATE_LIMITER` | 60/min | rota `info` ou `fetch` |
+| `RESOURCE_RATE_LIMITER` | 12/min | SHA-256 de `rota:idHash` |
+
+Os números de namespace `1246073101` a `1246073103` são identificadores públicos reservados pelo template, não IDs provisionados nem secrets. Se houver mais de uma instância LockBrief na mesma conta, confirme se elas devem compartilhar contadores; caso contrário, atribua namespaces distintos na configuração operacional protegida.
+
+O Rate Limiting API é local a cada localidade Cloudflare, permissivo e eventualmente consistente. Ele protege D1 e CPU depois que o Worker começou a executar, mas não evita que a requisição conte na cota diária.
+
+No plano Cloudflare Free, recursos, quantidades de regras e nomes do dashboard podem variar por zona, tipo de domínio e evolução da plataforma. Antes de depender de controle adicional de borda, confirme que ele está disponível na conta operacional.
+
+Quando a conta oferecer controles gratuitos antes do Worker:
+
+1. Ative apenas recursos gratuitos/inclusos de mitigação de bots disponíveis para a conta.
+2. Se houver regra de segurança gratuita compatível, bloqueie User-Agents de crawlers e previews que não precisam acessar a aplicação.
 3. Mantenha Preview URLs desativadas quando não forem necessárias.
 4. Para produção, prefira domínio controlado e evite divulgar rotas `workers.dev` adicionais.
 
+Se essas opções não estiverem disponíveis, mantenha os bindings do Worker e o fallback em memória como contenção básica, monitore consumo e trate a ausência de bloqueio anterior ao Worker como risco residual da instância gratuita.
+
 Não use regras que exijam cookies ou fingerprinting próprio da aplicação. O LockBrief não adiciona cookies, analytics, armazenamento local ou identificação de usuário para diferenciar humanos de bots.
+
+Turnstile possui plano gratuito, mas não integra o fluxo padrão atual. Adicioná-lo exigiria widget, secret de validação, alteração de UX e revisão de privacidade; não configure apenas no cliente nem trate o token como validado sem chamada server-side.
+
+## Matriz do Cloudflare Free
+
+Limites oficiais consultados em 27 de agosto de 2026. Eles podem mudar e devem ser reconfirmados antes de uma release:
+
+| Recurso | Limite Free relevante | Impacto no LockBrief |
+|---|---:|---|
+| Workers requests | 100.000/dia | Toda rota dinâmica que chega ao Worker conta |
+| CPU por invocação | 10 ms | Rate limiting e validação devem permanecer leves; PBKDF2 roda no navegador |
+| Static Assets | Gratuitos e sem limite de requests | Não usar `run_worker_first` para assets públicos |
+| D1 rows read | 5 milhões/dia | Índice por `id_hash` reduz leitura |
+| D1 rows written | 100.000/dia | Não usar D1 como contador por requisição |
+| D1 storage | 500 MB por banco; 5 GB por conta | Envelopes expiram em até 7 dias e cleanup é obrigatório |
+| D1 queries por invocação | 50 | Fluxos normais ficam muito abaixo desse teto |
+| D1 Time Travel | 7 dias | Exclusão do banco ativo não apaga imediatamente o histórico |
+| Workers Logs | 200.000 eventos/dia; retenção de 3 dias | Template amostra 10%; operador deve revisar necessidade |
+| WAF custom rules em zona Free | Até 5, sem regex | Opcional e aplicável apenas quando houver zona/domínio controlado; não é requisito do Worker |
+
+Fontes operacionais: [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/), [D1 limits](https://developers.cloudflare.com/d1/platform/limits/), [Workers Rate Limiting API](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/), [WAF custom rules](https://developers.cloudflare.com/waf/custom-rules/) e [Turnstile plans](https://developers.cloudflare.com/turnstile/plans/).
+
+## Homologação no plano Free
+
+Validação local não substitui homologação na conta real. Sem autorização de deploy, a entrega termina nos gates locais e deixa estes itens pendentes:
+
+- confirmar que a conta operacional permanece em Workers Free;
+- reconciliar os três bindings no `wrangler.local.toml`, repositório operacional ou dashboard sem substituir D1/routes existentes;
+- confirmar que o deploy aceita os bindings e que respostas `429` aparecem após o limite;
+- observar consumo de Workers requests, CPU, D1 rows read/write e Workers Logs sem registrar payloads;
+- validar criação, envelope v2, abertura de envelope v1, leitura única concorrente e cleanup remoto;
+- verificar domínio: em `workers.dev`, não presumir regras WAF de uma zona própria; com domínio controlado, revisar as regras Free disponíveis;
+- registrar resultado, data, configuração testada e risco residual. Não publicar account ID, database ID, tokens ou screenshots com dados sensíveis.
 
 ## Build do cliente
 
@@ -265,16 +349,17 @@ O placeholder principal do ícone fica em `src/client/assets/pwa-icon.png`. Para
 npm test
 ```
 
-Executa 29 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`. Os testes usam D1 isolado e não afetam bancos de desenvolvimento ou produção.
+Executa a suíte de integração com Vitest + `@cloudflare/vitest-pool-workers`. Os testes usam D1 isolado e não afetam bancos de desenvolvimento ou produção.
 
 ## Checklist de validação pré-release
 
 - [ ] `git status --short` revisado.
 - [ ] Nenhum `wrangler.local.toml`, `.dev.vars`, `.env`, token, secret ou `database_id` real aparece no diff.
 - [ ] `wrangler.toml` contém apenas placeholder público no repositório fonte, ou foi preservado como configuração operacional privada.
+- [ ] Bindings de rate limit foram preservados/reconciliados sem colisão involuntária de namespace na conta.
 - [ ] `npm run typecheck` passa.
 - [ ] `npm run build` passa.
-- [ ] `npm test` passa com 29/29.
+- [ ] `npm test` passa integralmente.
 - [ ] `npx wrangler deploy --dry-run --outdir /tmp/lockbrief-dry-run` empacota o Worker.
 - [ ] `CHANGELOG.md` e `RELEASE_NOTES.md` estão atualizados.
 - [ ] `AI-START.md`, `docs/ATUALIZACAO.md` e `docs/OPERACAO-IA.md` estão alinhados se houve mudança de atualização, deploy ou operação por IA.
@@ -286,8 +371,10 @@ Executa 29 testes de integração com Vitest + `@cloudflare/vitest-pool-workers`
 - [ ] `GET /api/health` retorna `{ status: "ok", db: "connected" }`.
 - [ ] `GET /privacidade` retorna página de privacidade.
 - [ ] `POST /api/store` com payload válido retorna `201 { ok: true }`.
-- [ ] `POST /api/fetch` com `idHash` inválido retorna `404`.
+- [ ] `POST /api/fetch` com `idHash` inválido retorna `400 invalid_request`.
 - [ ] `POST /api/info` retorna metadados sem consumir.
+- [ ] Limites de rota/recurso retornam `429 invalid_request` com `Retry-After: 60` sem gravar IP em D1.
+- [ ] Um envelope v1 legado e um envelope v2 novo são abertos com sucesso.
 - [ ] Criar segredo e verificar que plaintext não aparece no DevTools Network.
 - [ ] Verificar que chave está apenas no fragmento `#`.
 - [ ] Verificar no DevTools/Application que o service worker não cacheia `/api/*` nem HTML.

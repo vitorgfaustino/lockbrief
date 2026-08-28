@@ -19,7 +19,7 @@ function renderHtml(): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LockBrief — Segredos efêmeros. Controle local.</title>
-  <meta name="description" content="Compartilhe segredos que se autodestroem. Criptografia no navegador. Leitura única.">
+  <meta name="description" content="Compartilhe segredos efêmeros com criptografia no navegador e leitura única.">
   <meta name="theme-color" content="#0B1115">
   <meta name="application-name" content="LockBrief">
   <meta name="apple-mobile-web-app-title" content="LockBrief">

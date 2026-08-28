@@ -13,10 +13,11 @@ Envie um e-mail para o mantenedor com:
 
 O modelo de segurança do LockBrief assume:
 
-1. **O servidor é honesto mas não confiável**: O servidor armazena e serve dados, mas nunca deve ter acesso ao conteúdo descriptografado.
-2. **O navegador é confiável**: A criptografia ocorre localmente e a chave é manuseada apenas no navegador do usuário.
-3. **O link é o segredo**: Quem possui o link completo possui acesso ao segredo. A senha adicional mitiga parcialmente este risco.
-4. **O transporte é seguro**: HTTPS é obrigatório (Cloudflare fornece por padrão).
+1. **O backend não recebe a chave no fluxo normal**: O Worker e o D1 armazenam e servem o envelope, mas o cliente oficial não envia plaintext, chave ou senha adicional.
+2. **O origin é confiável para integridade**: O servidor e a infraestrutura que entregam `client.js`, HTML, service worker e assets precisam fornecer o código oficial sem adulteração. Um origin comprometido pode capturar novos segredos antes da criptografia.
+3. **O navegador é confiável**: A criptografia ocorre localmente e a chave é manuseada no navegador do usuário.
+4. **O link é o segredo**: Quem possui o link completo possui acesso ao segredo. A senha adicional mitiga parcialmente este risco.
+5. **O transporte é seguro**: HTTPS é obrigatório (Cloudflare fornece por padrão).
 
 ## Algoritmos utilizados
 
@@ -24,8 +25,8 @@ O modelo de segurança do LockBrief assume:
 |---|---|---|
 | Criptografia | AES-GCM-256 | IV 96 bits aleatório |
 | Hash de ID | SHA-256 | 32 bytes de entrada |
-| Derivação de senha | PBKDF2-SHA256 | 210.000 iterações, salt 128 bits |
-| Combinação de chaves | HKDF-SHA256 | RFC 5869, info string "lockbrief:v1:kdf" |
+| Derivação de senha | PBKDF2-SHA256 | 210.000 iterações, salt 128 bits; explícito no envelope v2 |
+| Combinação de chaves | HKDF-SHA256 | RFC 5869; `lockbrief:v1:kdf` legado ou `lockbrief:v2:kdf` atual |
 | Geração de aleatórios | crypto.getRandomValues | CSPRNG do navegador |
 | Codificação | base64url (RFC 4648 §5) | Sem padding |
 
@@ -46,9 +47,19 @@ rawId = random(256 bits)
 key   = random(256 bits)
 salt  = random(128 bits)
 K_pwd = PBKDF2-SHA256(password, salt, 210000, 256 bits)
-K_final = HKDF-SHA256(key || K_pwd, salt="", info="lockbrief:v1:kdf", 256 bits)
+K_final = HKDF-SHA256(key || K_pwd, salt="", info="lockbrief:v2:kdf", 256 bits)
 (iv, ciphertext) = AES-GCM-256(K_final, plaintext)
 ```
+
+Novas criações usam envelope v2 e gravam os parâmetros aceitos em `kdfParams`. O domínio HKDF v2 separa criptograficamente novas derivações do formato legado.
+
+### Compatibilidade de envelopes
+
+- Envelope v1 permanece somente para leitura, com 210.000 iterações e `lockbrief:v1:kdf` implícitos.
+- Envelope v2 é usado para novas criações e exige parâmetros explícitos na allowlist.
+- O Worker rejeita versões, iterações e domínios HKDF desconhecidos antes de persistir.
+- A evolução futura deve criar nova versão/allowlist; não deve reinterpretar um envelope já emitido.
+- O fragmento de URL `#v1` tem versionamento próprio e não muda com o envelope v2.
 
 ### Leitura de segredo (leitura unica — one_time = 1)
 ```
@@ -77,7 +88,7 @@ idHash = base64url(SHA-256(rawId do link))
 ```
 
 `/api/info` nunca retorna payload, envelope, `kdf`, `salt`, `iv`, `ciphertext`, chave, senha ou plaintext.
-`/api/info` possui rate limit em memória, sem persistir IP ou qualquer identificador de cliente.
+`/api/info` possui contenção por isolate e pelo Workers Rate Limiting API, sem usar IP, cookie ou fingerprint. O limite por recurso usa um novo SHA-256 de `rota:idHash` como chave do contador.
 
 ## Confirmação antes de consumo
 
@@ -94,7 +105,30 @@ Esse controle:
 - Não persiste User-Agent nem qualquer metadado do cliente.
 - Não substitui proteção na borda da Cloudflare para economia real de Worker requests.
 
-Para reduzir contagem no plano gratuito, o operador deve configurar regras de segurança da Cloudflare antes do Worker.
+O projeto não pressupõe acesso a WAF pago. Para reduzir contagem no plano gratuito, o operador pode usar somente controles gratuitos que estejam efetivamente disponíveis na conta e na zona. Quando nenhum controle anterior ao Worker estiver disponível, o bloqueio em código continua reduzindo trabalho de aplicação, mas não a contagem da requisição.
+
+## Rate limiting no Worker
+
+O template configura bindings do Workers Rate Limiting API, que não dependem de regra WAF paga. A camada aplica limites por rota e por recurso antes das consultas D1.
+
+Limites conhecidos:
+
+- O contador é local a cada localidade Cloudflare, permissivo e eventualmente consistente.
+- A chamada ocorre depois que o Worker iniciou; portanto não evita que a requisição conte na cota do plano Free.
+- O limite por rota é coletivo naquela localidade e pode causar bloqueio temporário de usuários legítimos durante surtos.
+- Falha do binding é fail-open para preservar disponibilidade, mas o fallback em memória do isolate continua ativo.
+- Não é proteção suficiente contra ataque distribuído por várias localidades.
+
+## Segurança da cadeia de fornecimento
+
+- `package-lock.json` é versionado e a CI instala dependências com `npm ci`.
+- Scripts de instalação de dependências usam allowlist versionada e modo estrito do npm; versões novas de `esbuild` e `workerd` exigem revisão antes da aprovação, e o script opcional de `fsevents` é negado.
+- A CI falha quando `npm audit --audit-level=high` encontra vulnerabilidade alta ou crítica.
+- GitHub Actions são fixadas por SHA imutável e executam com permissões explícitas mínimas.
+- O checkout da CI não mantém credenciais Git após obter o código.
+- A CI não instala nem executa código de PR externo; somente pushes, PRs do mantenedor e Dependabot entram no job de qualidade.
+- Dependabot verifica npm e GitHub Actions semanalmente, sem merge ou deploy automático.
+- Atualizações ainda exigem revisão humana, porque uma versão sem advisory conhecido pode introduzir regressão ou mudança maliciosa.
 
 ## PWA e service worker
 
@@ -119,16 +153,20 @@ Risco residual: se um navegador mantiver assets antigos em cache, uma versão an
 
 3. **Browser extension maliciosa**: Extensões com acesso ao DOM podem interceptar o segredo após descriptografia.
 
-4. **Cloudflare como operador**: A Cloudflare opera a infraestrutura. Em caso de comprometimento da plataforma, o envelope criptografado poderia ser acessado, mas não descriptografado sem a chave (que está apenas no fragmento, não enviado ao servidor).
+4. **Cloudflare e operador da instância**: O envelope armazenado não é descriptografável sem a chave. Entretanto, quem controla a entrega do cliente web pode adulterar JavaScript futuro e capturar plaintext, chave ou senha antes da criptografia. A arquitetura web não protege contra comprometimento ativo do origin.
 
 5. **Leitura única não é garantia absoluta**: O caminho principal usa `DELETE ... RETURNING` para reduzir a janela de corrida. O fallback mantém `consume_token`; em falha extrema do runtime, uma sobra criptografada consumida pode persistir até o cleanup.
+
+6. **Exclusão lógica e Time Travel**: Consumo e cleanup removem o registro do banco ativo e o tornam indisponível ao aplicativo. O D1 mantém histórico de Time Travel gerenciado pela Cloudflare por até 7 dias no plano gratuito ou 30 dias no pago. Um operador autorizado pode restaurar um estado anterior; o material restaurado continua criptografado.
+
+7. **Rate limiting não global**: Os bindings reduzem abuso dentro de uma localidade, mas não garantem limite global exato nem economizam a invocação que já chegou ao Worker.
 
 ## Cuidados com senha adicional
 
 - A senha adicional nunca é enviada ao Worker.
 - O salt da senha fica armazenado no envelope criptografado.
 - Sem o salt, mesmo com a senha correta, a descriptografia falha.
-- PBKDF2 com 210.000 iterações oferece resistência significativa a brute force offline.
+- PBKDF2 usa custo fixo de 210.000 iterações. Senhas humanas fracas continuam sujeitas a ataque offline contra o envelope; prefira a senha gerada pelo aplicativo ou o modo de chave automática.
 
 ## Política de erro genérico
 
@@ -168,7 +206,8 @@ O LockBrief opera no navegador — o limite de confiança do sistema. Extensões
 - Remove o fragmento da URL o mais cedo possível no carregamento.
 - Usa `textContent` (nunca `innerHTML`) para exibir o segredo.
 - Atributos `translate="no"` e `spellcheck="false"` no elemento de revelação.
-- Buffers `Uint8Array` de chave são sobrescritos com zeros após o uso.
+- Buffers mutáveis `Uint8Array` de chave são sobrescritos com zeros como melhor esforço após o uso ou substituição.
+- Strings, cópias internas do runtime, memória já coletada e dados exibidos no DOM não oferecem garantia de zeroização em JavaScript.
 - Nenhum dado sensível é armazenado em `localStorage`, `sessionStorage` ou cookies.
 - O CacheStorage do PWA armazena apenas assets públicos estáticos e nunca deve conter segredo, envelope, chave, senha ou resposta de API.
 

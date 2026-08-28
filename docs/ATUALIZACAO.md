@@ -270,6 +270,18 @@ npm run typecheck
 npm test
 ```
 
+### Compatibilidade entre Worker e cliente
+
+A partir da v1.2.0, novas criações protegidas por senha usam envelope v2 e domínio HKDF próprio. O cliente v1.2.0 lê envelopes v1 e v2, mas um cliente 1.1.x mantido em cache não deve ser considerado capaz de abrir um novo envelope v2 com senha.
+
+Por isso, atualizações da v1.2.0 ou posterior devem:
+
+1. publicar Worker e Static Assets a partir do mesmo checkout;
+2. não publicar somente o backend enquanto `client.js` ou service worker antigos continuam ativos;
+3. validar que uma sessão nova recebe a versão atual e abre um envelope v2 com senha;
+4. validar separadamente que um envelope v1 legado continua abrindo;
+5. tratar cache antigo persistente como bloqueio de homologação, sem alterar o envelope para imitar v1.
+
 ## Quando o upstream altera `wrangler.toml`
 
 No repositorio fonte oficial, uma alteracao em `wrangler.toml` e alteracao no template publico.
@@ -279,12 +291,14 @@ Em repositorio operacional, essa alteracao nao e permissao para sobrescrever a c
 Quando isso acontecer:
 
 1. revise o diff do `wrangler.toml`
-2. identifique se mudou Worker, D1, assets, cron, `workers_dev`, `preview_urls` ou observabilidade
+2. identifique se mudou Worker, D1, assets, cron, rate limit bindings, `workers_dev`, `preview_urls` ou observabilidade
 3. descubra se o arquivo local e template publico ou configuracao operacional versionada
 4. mantenha `wrangler.local.toml` intacto
 5. mantenha `wrangler.toml` operacional intacto ate revisar impacto
 6. replique algo na configuracao privada somente depois de entender o impacto operacional
-7. se houver duvida sobre `database_id`, binding, route, cron, workers.dev, preview URL ou secret, faca handoff manual
+7. se houver duvida sobre `database_id`, binding D1, namespace de rate limit, route, cron, workers.dev, preview URL ou secret, faca handoff manual
+
+O template atual adiciona `STORE_RATE_LIMITER`, `READ_RATE_LIMITER` e `RESOURCE_RATE_LIMITER`. Em instalação existente, não substitua a configuração operacional inteira. Replique os bindings manualmente, preserve D1/routes/secrets e escolha namespaces distintos se já houver uso dos números reservados ou se múltiplas instâncias não devam compartilhar contadores.
 
 Proibido durante atualizacao:
 
@@ -393,5 +407,6 @@ A IA deve parar e entregar instrucoes manuais quando:
 - [ ] `npm run build` passou.
 - [ ] `npm run typecheck` passou.
 - [ ] `npm test` passou.
+- [ ] Worker e Static Assets foram preparados a partir do mesmo checkout e a atualização do cliente/PWA foi validada quando houve mudança de envelope.
 - [ ] Publicacao remota foi feita apenas pelo metodo confirmado pelo operador.
 - [ ] O resumo final explicou se ha commit pendente, se houve push/deploy e qual e o proximo passo.

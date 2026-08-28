@@ -13,10 +13,11 @@
 - Não existe fluxo de criação com chave separada e senha ao mesmo tempo.
 - Bloco Expiração com TTL (1h/1d/1 semana).
 - Toggle "Destruir após leitura" (ativado por padrão).
-- Ao desativar "Destruir após leitura", a interface confirma que a nota será destruída apenas no prazo de expiração e poderá ser visualizada sem limite nesse intervalo.
+- Ao desativar "Destruir após leitura", a interface confirma que a nota deixará de ficar disponível no banco ativo apenas no prazo de expiração e poderá ser visualizada sem limite nesse intervalo.
 - Botão "Criar link seguro" com ícone de cadeado e estado de carregamento.
 - Ao submeter: criptografia local, envio ao Worker e redirecionamento para a tela de resultado.
 - Whitespace do segredo é preservado exatamente como digitado.
+- Após armazenamento bem-sucedido ou falha terminal que substitua a tela de criação, o textarea e o campo de senha são limpos antes de a tela ser ocultada.
 
 ### Tela Criado (sem senha)
 - Exibe 3 cards: Link completo, Link sem chave e Chave.
@@ -32,6 +33,7 @@
 
 ### Tela Revelar (leitura única — oneTime=true)
 - Detectada automaticamente quando a URL contém fragmento `#v1.`.
+- O `v1` do fragmento identifica o formato do link e permanece igual; ele é independente do envelope criptográfico v2 armazenado.
 - Fragmento removido da barra com `history.replaceState`.
 - Título: "Este segredo só pode ser revelado uma vez."
 - A tela inicial é sempre uma confirmação e nunca solicita chave ou senha.
@@ -39,6 +41,7 @@
 - Aviso de irreversibilidade (vermelho): ao clicar em "Revelar mensagem", a nota é removida do servidor.
 - Botão "Revelar mensagem" com ícone de visualização.
 - Botão "Cancelar" com ícone de retorno.
+- O botão "Cancelar" usa listener externo compatível com a CSP e retorna à página inicial sem consumir o segredo.
 
 ### Tela Revelar (multi-leitura — oneTime=false)
 - Título: "Revele o segredo" (sem aviso de destruição).
@@ -66,6 +69,7 @@
 5. Senha incorreta: mensagem "Senha incorreta. Tente novamente." + botão "Tentar novamente" (vermelho).
 6. Retry usa o envelope em memória — nunca faz novo fetch.
 7. Para multi-leitura (oneTime=false), não há aviso de destruição no campo de senha.
+8. Envelopes v1 existentes continuam compatíveis; novos segredos usam envelope v2 com parâmetros de KDF explícitos. Essa diferença não altera o fluxo visual.
 
 ### Tela Revelado (leitura única — oneTime=true)
 - Título: "Segredo revelado."
@@ -73,6 +77,7 @@
 - Aviso vermelho: "Depois de sair desta tela, o segredo não poderá ser recuperado."
 - `beforeunload` ativo para evitar saída acidental.
 - Segredo exibido em `textContent` (monospace), botão "Copiar" com ícone plano.
+- Inputs de chave e senha são limpos ao concluir a revelação ou sair da página; buffers mutáveis de chave são zerados como melhor esforço antes de perder a referência.
 
 ### Tela Revelado (multi-leitura — oneTime=false)
 - Título: "Segredo revelado."
@@ -94,6 +99,8 @@
 - Bots, crawlers e previews de links conhecidos recebem bloqueio `403` antes das rotas da aplicação.
 - Usuários reais em navegadores comuns continuam acessando o fluxo normal.
 - Este bloqueio reduz uso de D1/CPU dentro do Worker; economia de contagem de Worker requests depende de regras configuradas na borda da Cloudflare.
+- Rotas sensíveis também usam limites do Worker por rota e por recurso, sem IP ou cookie. Ao exceder o limite, recebem `429 invalid_request` com `Retry-After: 60`.
+- Os limites são compartilhados dentro de cada localidade Cloudflare e podem bloquear temporariamente usuários legítimos durante um surto; não são garantia global exata.
 
 ### PWA e instalação no celular
 - A aplicação publica manifesto PWA e ícones para permitir instalação pelo fluxo nativo do navegador em celulares e desktops compatíveis.
@@ -127,6 +134,7 @@
 
 - Todo conteúdo descriptografado vai para o DOM via `textContent`, nunca `innerHTML`.
 - Segredos com HTML/JS são exibidos como texto plano.
+- A limpeza de inputs e buffers reduz a exposição residual, mas JavaScript não fornece garantia de zeroização de strings ou cópias internas do runtime.
 
 ## Atalhos de teclado
 

@@ -7,9 +7,9 @@
 | GET | `/` | Serve HTML da aplicação | 200 |
 | GET | `/privacidade` | Serve política pública de privacidade | 200 |
 | GET | `/robots.txt` | Desencoraja indexação e crawling | 200 |
-| POST | `/api/store` | Armazena envelope criptografado | 201 |
+| POST | `/api/store` | Armazena envelope criptografado | 201 ou 429 |
 | POST | `/api/info` | Retorna metadados sem consumir segredo | 200, 404 ou 429 |
-| POST | `/api/fetch` | Consome e retorna envelope criptografado | 200 |
+| POST | `/api/fetch` | Consome e retorna envelope criptografado | 200, 404 ou 429 |
 | GET | `/api/health` | Health check (conectividade D1) | 200 ou 503 |
 
 ## Assets estáticos e PWA
@@ -40,10 +40,10 @@ O service worker é online-first. Ele só intercepta `GET` de assets públicos c
 
 ### Validações
 1. Content-Type deve conter `application/json`
-2. Body ≤ 100 KB
+2. Body ≤ 100 KB, aplicado durante a leitura do stream e antecipadamente quando `Content-Length` estiver presente
 3. JSON válido
 4. `idHash` string base64url de 43 caracteres
-5. `payload` string JSON válida, envelope com `{v, alg, iv, ciphertext, kdf, salt}`
+5. `payload` string JSON válida, envelope v1 legado ou v2 com `{v, alg, iv, ciphertext, kdf, salt, kdfParams}` e campos binários em base64url canônico; o ciphertext inclui no mínimo a tag AES-GCM de 128 bits
 6. `ttl` ∈ {3600, 86400, 604800}
 7. `oneTime` é opcional; qualquer valor diferente de `false` vira leitura única
 8. `idHash` não pode existir no banco (erro genérico em duplicata)
@@ -52,6 +52,7 @@ O service worker é online-first. Ele só intercepta `GET` de assets públicos c
 - `201` + `{ "ok": true }`
 - `400` + `{ "error": "invalid_request" }`
 - `404` + `{ "error": "not_available" }` (colisão de idHash)
+- `429` + `{ "error": "invalid_request" }` e `Retry-After: 60`
 
 ## API: POST /api/fetch
 
@@ -80,6 +81,7 @@ O service worker é online-first. Ele só intercepta `GET` de assets públicos c
 ### Responses
 - `200` + `{ "payload": "<string>" }`
 - `404` + `{ "error": "not_available" }`
+- `429` + `{ "error": "invalid_request" }` e `Retry-After: 60`
 
 ## API: POST /api/info
 
@@ -96,6 +98,8 @@ Retorna metadados do segredo **sem consumi-lo**.
 - `200` + `{ "oneTime": true, "expiresAt": 1747861200, "requiresPassword": false }`
 - `404` + `{ "error": "not_available" }`
 - `429` + `{ "error": "invalid_request" }`
+
+Respostas `429` incluem `Retry-After: 60`.
 
 `requiresPassword` é derivado exclusivamente do campo `kdf` dentro do envelope criptografado armazenado. A resposta nunca inclui payload, envelope, `kdf`, `salt`, `iv`, `ciphertext`, chave, senha ou plaintext.
 
@@ -137,16 +141,30 @@ Retorna metadados do segredo **sem consumi-lo**.
 | rawId | 32 bytes (43 chars base64url) |
 | key | 32 bytes (43 chars base64url) |
 | idHash | 43 caracteres base64url |
+| Body de `/api/info` e `/api/fetch` | 2 KB, limitado durante a leitura |
+
+## Versões do envelope criptográfico
+
+| Versão | Criação nova | Leitura | KDF |
+|---|---:|---:|---|
+| v1 | Não | Sim | Parâmetros legados implícitos: PBKDF2 210.000 e `lockbrief:v1:kdf` |
+| v2 | Sim | Sim | Parâmetros explícitos e validados: PBKDF2 210.000 e `lockbrief:v2:kdf` |
+
+No envelope v2, `kdfParams` é `null` quando `kdf = "none"`. Quando há senha, o objeto deve conter exatamente os valores suportados de `iterations` e `hkdfInfo`. Valores arbitrários são rejeitados antes do armazenamento para impedir downgrade, custo computacional controlado por payload ou algoritmos desconhecidos.
+
+A versão do envelope não é a versão do fragmento de link. O fragmento continua em `#v1.<rawId>[.<key>]`; mudar o envelope armazenado não quebra URLs existentes nem envia sua versão ao servidor fora do payload criptográfico.
 
 ## Abuse Controls
 
-- Contadores em memória (escopo global do isolate)
-- `POST /api/store`: 30 requests/min
-- `POST /api/info`: 60 requests/min
-- `POST /api/fetch`: 60 requests/min
+- Fallback em memória por isolate: store 30/min, info 60/min e fetch 60/min.
+- Workers Rate Limiting API por localidade Cloudflare: store 30/min; info e fetch 60/min por rota.
+- Limite adicional de 12/min por combinação rota + recurso em `/api/info` e `/api/fetch`.
+- A chave do recurso é SHA-256 de `rota:idHash`; o `idHash` não é reutilizado diretamente como chave do contador.
 - Sem persistência de IP ou metadados de cliente
 - Bloqueio leve de crawlers e previews conhecidos antes das rotas de aplicação.
 - O bloqueio no Worker reduz D1/CPU, mas requisições que chegam ao Worker ainda contam para o plano da Cloudflare.
+- O binding é local a cada ponto de presença, eventualmente consistente e permissivo; não é contador global exato nem sistema contábil.
+- Se o binding falhar, o código mantém disponibilidade com fallback em memória e registra somente erro genérico.
 
 ## Headers de segurança
 
@@ -160,6 +178,7 @@ Retorna metadados do segredo **sem consumi-lo**.
 - Cross-Origin-Opener-Policy: `same-origin`
 - Permissions-Policy: `camera=(), microphone=(), geolocation=(), payment=()`
 - X-Robots-Tag: `noindex, nofollow, noarchive, nosnippet`
+- Retry-After: `60` somente em respostas `429`
 
 ### JSON (API)
 - Content-Type: `application/json; charset=utf-8`

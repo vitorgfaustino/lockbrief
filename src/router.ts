@@ -3,7 +3,7 @@
  * Sem dependencias externas.
  */
 
-import type { D1Database } from "@cloudflare/workers-types";
+import type { D1Database, RateLimit } from "@cloudflare/workers-types";
 
 export type Handler = (
   request: Request,
@@ -12,6 +12,9 @@ export type Handler = (
 
 export interface Env {
   DB: D1Database;
+  STORE_RATE_LIMITER?: RateLimit;
+  READ_RATE_LIMITER?: RateLimit;
+  RESOURCE_RATE_LIMITER?: RateLimit;
 }
 
 interface Route {

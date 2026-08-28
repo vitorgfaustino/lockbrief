@@ -19,7 +19,7 @@ Orientar agentes de IA a operar o LockBrief sem adivinhar dados, sem ultrapassar
 - PRs externos no upstream oficial nao sao aceitos; se houver feedback para o projeto, oriente abrir Issue
 - nao assuma que `origin` e o upstream oficial
 - em Workers Builds/GitHub e Deploy Button, trate o dashboard da Cloudflare ou o repositorio operacional privado como origem dos valores reais
-- em deploy local via Wrangler, use `wrangler.local.toml` para valores reais de D1
+- em deploy local via Wrangler, use `wrangler.local.toml` para valores reais de D1 e reconcilie bindings de rate limit sem sobrescrever a configuração privada
 - nao crie D1 remoto, altere binding, publique Worker ou mude dashboard sem confirmacao explicita
 - nao recrie `plan.md` sem pedido explicito do mantenedor
 - nao resolva `unrelated histories` com `--allow-unrelated-histories`, rebase automatico, `reset --hard` ou push com `--force`/`--force-with-lease`
@@ -119,7 +119,7 @@ A IA deve parar quando a tarefa depender de:
 - revisao juridica ou operacional da politica de privacidade da instancia
 - conflito de Git com conflito de conteudo, risco de sobrescrever configuracao protegida ou necessidade de decisao humana
 - historico Git sem ancestral comum quando houver conflito conceitual ou risco de sobrescrever configuracao protegida
-- necessidade de reconciliar `wrangler.toml` operacional com o template do upstream
+- necessidade de reconciliar `wrangler.toml` operacional, D1 ou namespaces de rate limit com o template do upstream
 - qualquer caminho que dependa de `git push --force` ou `git push --force-with-lease`
 
 ## Resultado esperado

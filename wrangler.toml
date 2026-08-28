@@ -19,6 +19,32 @@ database_name = "lockbrief"
 database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
 
+# Namespaces publicos reservados pelo template LockBrief. Nao sao secrets nem IDs
+# de recursos provisionados. Contadores sao locais a cada localidade Cloudflare.
+[[ratelimits]]
+name = "STORE_RATE_LIMITER"
+namespace_id = "1246073101"
+
+  [ratelimits.simple]
+  limit = 30
+  period = 60
+
+[[ratelimits]]
+name = "READ_RATE_LIMITER"
+namespace_id = "1246073102"
+
+  [ratelimits.simple]
+  limit = 60
+  period = 60
+
+[[ratelimits]]
+name = "RESOURCE_RATE_LIMITER"
+namespace_id = "1246073103"
+
+  [ratelimits.simple]
+  limit = 12
+  period = 60
+
 [triggers]
 crons = ["*/30 * * * *"]
 

@@ -3,7 +3,7 @@
  * Coordena UI, criptografia e chamadas de API.
  */
 
-import { initUI, showScreen, renderCreateScreen, renderCreatedScreen, renderRevealScreen, renderKeyPrompt, renderPasswordPrompt, renderRevealedScreen, renderUnavailableScreen, flashCopyButton, ProtectionMode } from "./ui";
+import { initUI, showScreen, renderCreateScreen, renderCreatedScreen, renderRevealScreen, renderKeyPrompt, renderPasswordPrompt, renderRevealedScreen, renderUnavailableScreen, flashCopyButton, clearCreateSensitiveInputs, clearRevealSensitiveInputs, ProtectionMode } from "./ui";
 import { createEnvelope, openEnvelope, parseFragment, buildLink, base64urlDecode, base64urlEncode, FragmentParts, Envelope } from "./crypto";
 import { getLang, t } from "./i18n";
 
@@ -69,6 +69,12 @@ function hasStoredData(): boolean {
   return storedEnvelope !== null && storedKeyBytes !== null;
 }
 
+function clearStoredData(): void {
+  storedKeyBytes?.fill(0);
+  storedEnvelope = null;
+  storedKeyBytes = null;
+}
+
 // ── Init ────────────────────────────────────────────────────────
 async function main(): Promise<void> {
   initUI();
@@ -127,32 +133,38 @@ async function handleCreate(
   protection: ProtectionMode
 ): Promise<void> {
   const key = window.crypto.getRandomValues(new Uint8Array(32));
-  const { envelope, idHash, rawIdB64 } = await createEnvelope(
-    secret,
-    key,
-    password || undefined
-  );
+  try {
+    const { envelope, idHash, rawIdB64 } = await createEnvelope(
+      secret,
+      key,
+      password || undefined
+    );
 
-  const payload = JSON.stringify(envelope);
-  const success = await API.store(idHash, payload, ttl, oneTime);
+    const payload = JSON.stringify(envelope);
+    const success = await API.store(idHash, payload, ttl, oneTime);
 
-  if (!success) {
-    renderUnavailableScreen();
-    showScreen("unavailable");
-    return;
+    if (!success) {
+      clearCreateSensitiveInputs();
+      renderUnavailableScreen();
+      showScreen("unavailable");
+      return;
+    }
+
+    const keyB64 = base64urlEncode(key);
+    const baseUrl = `${window.location.origin}${window.location.pathname}`.replace(/\/$/, "");
+    const linkFull = buildLink(baseUrl, rawIdB64, keyB64);
+    const linkshort = `${baseUrl}#v1.${rawIdB64}`;
+
+    clearCreateSensitiveInputs();
+    renderCreatedScreen(linkFull, linkshort, keyB64, password, { ttl, oneTime, protection }, {
+      onCopy: (text) => {
+        navigator.clipboard.writeText(text).catch(() => {});
+      },
+    });
+    showScreen("created");
+  } finally {
+    key.fill(0);
   }
-
-  const keyB64 = base64urlEncode(key);
-  const baseUrl = `${window.location.origin}${window.location.pathname}`.replace(/\/$/, "");
-  const linkFull = buildLink(baseUrl, rawIdB64, keyB64);
-  const linkshort = `${baseUrl}#v1.${rawIdB64}`;
-
-  renderCreatedScreen(linkFull, linkshort, keyB64, password, { ttl, oneTime, protection }, {
-    onCopy: (text) => {
-      navigator.clipboard.writeText(text).catch(() => {});
-    },
-  });
-  showScreen("created");
 }
 
 // ── Reveal Handler (step 1: fetch from server — consome o segredo) ──
@@ -254,6 +266,7 @@ async function handleKeyAttempt(keyInput: string): Promise<void> {
     return;
   }
 
+  storedKeyBytes!.fill(0);
   storedKeyBytes = newKeyBytes;
   await tryDecryptWithStoredData();
 }
@@ -280,6 +293,7 @@ async function handlePasswordAttempt(password: string): Promise<void> {
 
 // ── Exibe o segredo revelado ───────────────────────────────────
 function showRevealedSecret(secret: string): void {
+  clearRevealSensitiveInputs();
   renderRevealedScreen(secret, secretOneTime, secretExpiresAt, {
     onCopy: (text) => {
       navigator.clipboard.writeText(text).catch(() => {});
@@ -288,8 +302,7 @@ function showRevealedSecret(secret: string): void {
     },
   });
   showScreen("revealed");
-  storedEnvelope = null;
-  storedKeyBytes = null;
+  clearStoredData();
 }
 
 // ── Boot ────────────────────────────────────────────────────────
@@ -307,4 +320,9 @@ window.addEventListener("beforeunload", (e) => {
     e.preventDefault();
     e.returnValue = "";
   }
+});
+
+window.addEventListener("pagehide", () => {
+  clearStoredData();
+  clearRevealSensitiveInputs();
 });

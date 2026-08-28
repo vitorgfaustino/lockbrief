@@ -13,12 +13,15 @@ import { safeParseJSON } from "../lib/json";
 import { validateIdHash } from "../lib/validation";
 import { badRequest, notAvailable, tooManyRequests } from "../lib/errors";
 import { nowUnixSeconds } from "../lib/timestamps";
-import { checkFetchAllowed } from "../lib/abuse-controls";
+import { checkFetchAllowed, checkResourceAllowed } from "../lib/abuse-controls";
 import { ErrorResult } from "../lib/errors";
 import { JSON_HEADERS } from "../lib/headers";
+import { readTextBodyWithLimit } from "../lib/request-body";
+
+const MAX_BODY_BYTES = 2048;
 
 export async function handleFetch(request: Request, env: Env): Promise<Response> {
-  if (!checkFetchAllowed()) {
+  if (!(await checkFetchAllowed(env))) {
     return jsonError(tooManyRequests());
   }
 
@@ -27,10 +30,11 @@ export async function handleFetch(request: Request, env: Env): Promise<Response>
     return jsonError(badRequest());
   }
 
-  const bodyText = await request.text();
-  if (bodyText.length > 2048) {
+  const bodyResult = await readTextBodyWithLimit(request, MAX_BODY_BYTES);
+  if (!bodyResult.ok) {
     return jsonError(badRequest());
   }
+  const bodyText = bodyResult.text;
 
   const parsed = safeParseJSON(bodyText);
   if (!parsed.ok) {
@@ -45,6 +49,10 @@ export async function handleFetch(request: Request, env: Env): Promise<Response>
   const idHash = (body as Record<string, unknown>).idHash;
   if (!validateIdHash(idHash)) {
     return jsonError(badRequest());
+  }
+
+  if (!(await checkResourceAllowed(env, "fetch", idHash))) {
+    return jsonError(tooManyRequests());
   }
 
   const now = nowUnixSeconds();
@@ -162,6 +170,9 @@ function jsonPayload(payload: string): Response {
 function jsonError(err: ErrorResult): Response {
   return new Response(JSON.stringify({ error: err.error }), {
     status: err.status,
-    headers: JSON_HEADERS,
+    headers: {
+      ...JSON_HEADERS,
+      ...(err.status === 429 ? { "Retry-After": "60" } : {}),
+    },
   });
 }

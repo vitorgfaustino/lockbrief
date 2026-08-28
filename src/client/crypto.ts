@@ -4,6 +4,17 @@
  * O Worker nunca recebe plaintext, chave ou senha.
  */
 
+import {
+  CURRENT_HKDF_INFO,
+  CURRENT_PBKDF2_ITERATIONS,
+  Envelope,
+  LEGACY_HKDF_INFO,
+  LEGACY_PBKDF2_ITERATIONS,
+  PASSWORD_KDF,
+} from "../lib/envelope-format";
+
+export type { Envelope } from "../lib/envelope-format";
+
 // ── Encoding ───────────────────────────────────────────────────
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -51,8 +62,12 @@ export async function encryptAes(
   const iv = randomBytes(12);
   const aesKey = await importAesKey(key);
   const plainBytes = encoder.encode(plaintext);
-  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, plainBytes);
-  return { iv, ciphertext: new Uint8Array(encrypted) };
+  try {
+    const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, aesKey, plainBytes);
+    return { iv, ciphertext: new Uint8Array(encrypted) };
+  } finally {
+    plainBytes.fill(0);
+  }
 }
 
 export async function decryptAes(
@@ -62,44 +77,57 @@ export async function decryptAes(
 ): Promise<string> {
   const aesKey = await importAesKey(key);
   const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, ciphertext);
-  return decoder.decode(decrypted);
+  const decryptedBytes = new Uint8Array(decrypted);
+  try {
+    return decoder.decode(decryptedBytes);
+  } finally {
+    decryptedBytes.fill(0);
+  }
 }
 
 // ── PBKDF2-SHA256 ──────────────────────────────────────────────
-const PBKDF2_ITERATIONS = 210_000;
-
 export async function derivePbkdf2(
   password: string,
-  salt: Uint8Array
+  salt: Uint8Array,
+  iterations = LEGACY_PBKDF2_ITERATIONS
 ): Promise<Uint8Array> {
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(password),
-    "PBKDF2",
-    false,
-    ["deriveBits"]
-  );
-  const derived = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
-    keyMaterial,
-    256
-  );
-  return new Uint8Array(derived);
+  const passwordBytes = encoder.encode(password);
+  try {
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      passwordBytes,
+      "PBKDF2",
+      false,
+      ["deriveBits"]
+    );
+    const derived = await crypto.subtle.deriveBits(
+      { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+      keyMaterial,
+      256
+    );
+    return new Uint8Array(derived);
+  } finally {
+    passwordBytes.fill(0);
+  }
 }
 
 // ── HKDF-SHA256 ────────────────────────────────────────────────
-const HKDF_INFO = encoder.encode("lockbrief:v1:kdf");
-
 export async function deriveHkdf(
-  ikm: Uint8Array
+  ikm: Uint8Array,
+  infoText = LEGACY_HKDF_INFO
 ): Promise<Uint8Array> {
-  const hkdfKey = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
-  const derived = await crypto.subtle.deriveBits(
-    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(0), info: HKDF_INFO },
-    hkdfKey,
-    256
-  );
-  return new Uint8Array(derived);
+  const info = encoder.encode(infoText);
+  try {
+    const hkdfKey = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
+    const derived = await crypto.subtle.deriveBits(
+      { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(0), info },
+      hkdfKey,
+      256
+    );
+    return new Uint8Array(derived);
+  } finally {
+    info.fill(0);
+  }
 }
 
 // ── Combined KDF ───────────────────────────────────────────────
@@ -110,54 +138,73 @@ export function combineKeys(key: Uint8Array, kPwd: Uint8Array): Uint8Array {
   return combined;
 }
 
-// ── Envelope ───────────────────────────────────────────────────
-export interface Envelope {
-  v: 1;
-  alg: "AES-GCM-256";
-  iv: string;
-  ciphertext: string;
-  kdf: "none" | "PBKDF2-SHA256+HKDF-SHA256";
-  salt: string | null;
-}
-
 export async function createEnvelope(
   plaintext: string,
   key: Uint8Array,
   password?: string
 ): Promise<{ envelope: Envelope; idHash: string; rawIdB64: string }> {
   const rawId = randomBytes(32);
-  const rawIdB64 = base64urlEncode(rawId);
-  const idHash = await computeIdHash(rawId);
+  let rawIdB64: string;
+  let idHash: string;
+  try {
+    rawIdB64 = base64urlEncode(rawId);
+    idHash = await computeIdHash(rawId);
+  } finally {
+    rawId.fill(0);
+  }
 
-  let finalKey: Uint8Array;
+  let finalKey: Uint8Array = key;
+  let derivedFinalKey: Uint8Array | null = null;
+  let passwordKey: Uint8Array | null = null;
+  let combinedKey: Uint8Array | null = null;
   let kdf: Envelope["kdf"] = "none";
   let salt: string | null = null;
 
-  if (password) {
-    kdf = "PBKDF2-SHA256+HKDF-SHA256";
-    const saltBytes = randomBytes(16);
-    salt = base64urlEncode(saltBytes);
-    const kPwd = await derivePbkdf2(password, saltBytes);
-    const combined = combineKeys(key, kPwd);
-    finalKey = await deriveHkdf(combined);
-  } else {
-    finalKey = key;
+  try {
+    if (password) {
+      kdf = PASSWORD_KDF;
+      const saltBytes = randomBytes(16);
+      try {
+        salt = base64urlEncode(saltBytes);
+        passwordKey = await derivePbkdf2(password, saltBytes, CURRENT_PBKDF2_ITERATIONS);
+        combinedKey = combineKeys(key, passwordKey);
+        derivedFinalKey = await deriveHkdf(combinedKey, CURRENT_HKDF_INFO);
+        finalKey = derivedFinalKey;
+      } finally {
+        saltBytes.fill(0);
+      }
+    }
+
+    const { iv, ciphertext } = await encryptAes(plaintext, finalKey);
+    try {
+      const common = {
+        v: 2 as const,
+        alg: "AES-GCM-256" as const,
+        iv: base64urlEncode(iv),
+        ciphertext: base64urlEncode(ciphertext),
+      };
+      const envelope: Envelope = kdf === PASSWORD_KDF
+        ? {
+            ...common,
+            kdf,
+            salt: salt as string,
+            kdfParams: {
+              iterations: CURRENT_PBKDF2_ITERATIONS,
+              hkdfInfo: CURRENT_HKDF_INFO,
+            },
+          }
+        : { ...common, kdf: "none", salt: null, kdfParams: null };
+
+      return { envelope, idHash, rawIdB64 };
+    } finally {
+      iv.fill(0);
+      ciphertext.fill(0);
+    }
+  } finally {
+    passwordKey?.fill(0);
+    combinedKey?.fill(0);
+    derivedFinalKey?.fill(0);
   }
-
-  const { iv, ciphertext } = await encryptAes(plaintext, finalKey);
-
-  return {
-    envelope: {
-      v: 1,
-      alg: "AES-GCM-256",
-      iv: base64urlEncode(iv),
-      ciphertext: base64urlEncode(ciphertext),
-      kdf,
-      salt,
-    },
-    idHash,
-    rawIdB64,
-  };
 }
 
 export async function openEnvelope(
@@ -165,22 +212,45 @@ export async function openEnvelope(
   key: Uint8Array,
   password?: string
 ): Promise<string> {
-  let finalKey: Uint8Array;
+  let finalKey: Uint8Array = key;
+  let derivedFinalKey: Uint8Array | null = null;
+  let passwordKey: Uint8Array | null = null;
+  let combinedKey: Uint8Array | null = null;
 
-  if (envelope.kdf === "PBKDF2-SHA256+HKDF-SHA256") {
-    if (!password) throw new Error("Password required");
-    if (!envelope.salt) throw new Error("Salt missing");
-    const saltBytes = base64urlDecode(envelope.salt);
-    const kPwd = await derivePbkdf2(password, saltBytes);
-    const combined = combineKeys(key, kPwd);
-    finalKey = await deriveHkdf(combined);
-  } else {
-    finalKey = key;
+  try {
+    if (envelope.kdf === PASSWORD_KDF) {
+      if (!password) throw new Error("Password required");
+      if (!envelope.salt) throw new Error("Salt missing");
+      const saltBytes = base64urlDecode(envelope.salt);
+      try {
+        const iterations = envelope.v === 2
+          ? envelope.kdfParams.iterations
+          : LEGACY_PBKDF2_ITERATIONS;
+        const hkdfInfo = envelope.v === 2
+          ? envelope.kdfParams.hkdfInfo
+          : LEGACY_HKDF_INFO;
+        passwordKey = await derivePbkdf2(password, saltBytes, iterations);
+        combinedKey = combineKeys(key, passwordKey);
+        derivedFinalKey = await deriveHkdf(combinedKey, hkdfInfo);
+        finalKey = derivedFinalKey;
+      } finally {
+        saltBytes.fill(0);
+      }
+    }
+
+    const iv = base64urlDecode(envelope.iv);
+    const ciphertext = base64urlDecode(envelope.ciphertext);
+    try {
+      return await decryptAes(iv, ciphertext, finalKey);
+    } finally {
+      iv.fill(0);
+      ciphertext.fill(0);
+    }
+  } finally {
+    passwordKey?.fill(0);
+    combinedKey?.fill(0);
+    derivedFinalKey?.fill(0);
   }
-
-  const iv = base64urlDecode(envelope.iv);
-  const ciphertext = base64urlDecode(envelope.ciphertext);
-  return decryptAes(iv, ciphertext, finalKey);
 }
 
 // ── URL Fragment ───────────────────────────────────────────────

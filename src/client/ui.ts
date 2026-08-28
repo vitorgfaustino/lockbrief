@@ -93,7 +93,7 @@ function buildInfoPanel(): string {
         <li class="info-item"><span class="info-flat-icon">${icon("lock", "icon")}</span><div><strong>Criptografia local</strong><p>O segredo é criptografado no navegador antes de enviar.</p></div></li>
         <li class="info-item"><span class="info-flat-icon">${icon("key", "icon")}</span><div><strong>Chave no fragmento</strong><p>A chave fica no link ou em campo separado, nunca no servidor.</p></div></li>
         <li class="info-item"><span class="info-flat-icon">${icon("fileLock", "icon")}</span><div><strong>Leitura controlada</strong><p>Escolha destruir após a primeira leitura ou manter até expirar.</p></div></li>
-        <li class="info-item"><span class="info-flat-icon">${icon("clock", "icon")}</span><div><strong>Expiração automática</strong><p>Segredos expirados são removidos permanentemente.</p></div></li>
+        <li class="info-item"><span class="info-flat-icon">${icon("clock", "icon")}</span><div><strong>Expiração automática</strong><p>Segredos expirados deixam de ficar disponíveis no banco ativo.</p></div></li>
         <li class="info-item"><span class="info-flat-icon">${icon("shield", "icon")}</span><div><strong>Sem rastreamento</strong><p>Sem contas, cookies, analytics ou logs de conteúdo.</p></div></li>
       </ul>
       <div class="info-divider"></div>
@@ -503,7 +503,7 @@ export function renderRevealScreen(
           <svg class="spinner" viewBox="0 0 24 24" width="18" height="18"><circle class="spinner-track" cx="12" cy="12" r="10" fill="none" stroke-width="2.5"/><circle class="spinner-head" cx="12" cy="12" r="10" fill="none" stroke-width="2.5"/></svg>
         </span>
       </button>
-      <button type="button" class="btn btn-ghost btn-full" onclick="window.location.href='/'">${icon("arrowLeft")}${t("cancelBtn")}</button>
+      <button type="button" class="btn btn-ghost btn-full" id="cancelRevealBtn">${icon("arrowLeft")}${t("cancelBtn")}</button>
     </div>`;
 
   wireRevealButton(callbacks);
@@ -525,6 +525,10 @@ function wireRevealButton(callbacks: RevealScreenCallbacks): void {
     btn.classList.remove("is-loading");
     btn.disabled = false;
     btn.querySelector(".btn-spinner")!.hidden = true;
+  });
+
+  document.getElementById("cancelRevealBtn")?.addEventListener("click", () => {
+    window.location.href = "/";
   });
 }
 
@@ -803,6 +807,24 @@ export function flashCopyButton(btn: HTMLElement): void {
     btn.classList.remove("copied");
     if (label) label.textContent = t("copyBtn");
   }, 2000);
+}
+
+export function clearCreateSensitiveInputs(): void {
+  const secretInput = document.getElementById("secretInput") as HTMLTextAreaElement | null;
+  const passwordInput = document.getElementById("passwordInput") as HTMLInputElement | null;
+  const charCount = document.getElementById("charCount");
+
+  if (secretInput) secretInput.value = "";
+  if (passwordInput) passwordInput.value = "";
+  if (charCount) charCount.textContent = `0 ${t("charsCounter")}`;
+}
+
+export function clearRevealSensitiveInputs(): void {
+  const keyInput = document.getElementById("revealKeyInput") as HTMLInputElement | null;
+  const passwordInput = document.getElementById("revealPwdInput") as HTMLInputElement | null;
+
+  if (keyInput) keyInput.value = "";
+  if (passwordInput) passwordInput.value = "";
 }
 
 function escapeHtml(str: string): string {

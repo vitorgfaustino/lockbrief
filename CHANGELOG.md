@@ -6,6 +6,44 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 
 ---
 
+## [Não lançado]
+
+## [1.2.0] — 2026-08-28
+
+### Segurança
+- Bodies de `/api/store`, `/api/info` e `/api/fetch` agora são limitados durante a leitura do stream, evitando materializar requisições acima do contrato em memória.
+- Validação de envelope rejeita base64url não canônico, caracteres fora do alfabeto, comprimentos impossíveis sem padding e ciphertext menor que a tag AES-GCM.
+- Inputs sensíveis são limpos após criação, revelação ou saída da página, e buffers mutáveis de chave são zerados como melhor esforço após uso ou substituição.
+- Botão de cancelamento da revelação deixou de usar handler inline incompatível com a CSP.
+- Dependências de build, teste e deploy foram atualizadas para versões sem vulnerabilidades conhecidas no `npm audit` da entrega.
+- Scripts de instalação transitivos ficam restritos por allowlist versionada e modo estrito do npm às versões revisadas de `esbuild` e `workerd`; o script opcional de `fsevents` permanece negado.
+- GitHub Actions usam permissões mínimas, timeout, credenciais de checkout desativadas e referências imutáveis por SHA.
+- O job de qualidade não instala nem executa código de PR externo; pushes, PRs do mantenedor e Dependabot continuam cobertos.
+- CI passa a bloquear vulnerabilidades de severidade alta ou crítica com `npm audit --audit-level=high`.
+- Abuse controls passam a combinar fallback por isolate com Workers Rate Limiting API por rota e por recurso, sem IP, cookie ou fingerprint.
+- Respostas limitadas retornam `Retry-After: 60`; falha do binding preserva o fallback local sem expor detalhes.
+- Novos segredos usam envelope v2 com parâmetros de KDF explícitos e domínio HKDF próprio; envelopes v1 permanecem legíveis.
+- Validação rejeita parâmetros KDF v2 desconhecidos ou custos controlados pelo payload.
+- Buffers mutáveis intermediários de plaintext, senha derivada, chave combinada, chave final, salt, IV e ciphertext são zerados como melhor esforço após uso.
+
+### Operação
+- Dependabot monitora semanalmente dependências npm e GitHub Actions; seus PRs são a única exceção ao fechamento automático de contribuições externas e continuam exigindo CI e revisão humana.
+- O plano operacional de proteção foi alinhado ao Cloudflare Free: recursos pagos de WAF não são requisito e controles opcionais do dashboard só podem ser adotados após confirmar disponibilidade na conta.
+- Template Wrangler inclui três bindings públicos de rate limit; instalações operacionais devem reconciliá-los sem substituir D1, routes ou configuração privada.
+- Atualizações devem publicar Worker e assets v1.2.0 juntos, pois clientes 1.1.x em cache não são compatíveis com novos envelopes v2 protegidos por senha.
+
+### Documentação
+- Modelo de confiança agora explicita que origin e infraestrutura são confiáveis para a integridade do JavaScript entregue.
+- Retenção diferencia remoção do banco D1 ativo do histórico automático de Time Travel da Cloudflare.
+- Política de privacidade e runbook operacional descrevem corretamente Workers Logs, metadados de infraestrutura e limites de zeroização no navegador.
+- Limitações dos abuse controls em memória são declaradas como contenção temporária, não como rate limit distribuído de produção.
+- Runbook documenta a manutenção da cadeia de fornecimento, os gates da CI e a limitação explícita ao Cloudflare Free.
+- Matriz operacional registra limites do Workers/D1/Logs Free e separa validação local de homologação remota.
+
+### Testes
+- Cobertura adicionada para envelopes base64url inválidos e bodies acima do limite nas rotas de consulta e consumo.
+- Cobertura adicionada para rate limiter distribuído, `Retry-After`, envelopes v2, parâmetros KDF inválidos e leitura de envelope v1 legado.
+
 ## [1.1.1] — 2026-05-29
 
 ### Alterado

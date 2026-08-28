@@ -27,10 +27,13 @@ import { nowUnixSeconds } from "../lib/timestamps";
 import { checkStoreAllowed } from "../lib/abuse-controls";
 import { ErrorResult } from "../lib/errors";
 import { JSON_HEADERS } from "../lib/headers";
+import { readTextBodyWithLimit } from "../lib/request-body";
+
+const MAX_BODY_BYTES = 102400;
 
 export async function handleStore(request: Request, env: Env): Promise<Response> {
   // Abuse control
-  if (!checkStoreAllowed()) {
+  if (!(await checkStoreAllowed(env))) {
     return jsonError(tooManyRequests());
   }
 
@@ -40,8 +43,12 @@ export async function handleStore(request: Request, env: Env): Promise<Response>
     return jsonError(badRequest());
   }
 
-  // Ler body
-  const bodyText = await request.text();
+  // Ler body com limite durante o streaming, antes de materializa-lo inteiro.
+  const bodyResult = await readTextBodyWithLimit(request, MAX_BODY_BYTES);
+  if (!bodyResult.ok) {
+    return jsonError(badRequest());
+  }
+  const bodyText = bodyResult.text;
   if (!validateBodyLength(bodyText)) {
     return jsonError(badRequest());
   }
@@ -114,6 +121,9 @@ export async function handleStore(request: Request, env: Env): Promise<Response>
 function jsonError(err: ErrorResult): Response {
   return new Response(JSON.stringify({ error: err.error }), {
     status: err.status,
-    headers: JSON_HEADERS,
+    headers: {
+      ...JSON_HEADERS,
+      ...(err.status === 429 ? { "Retry-After": "60" } : {}),
+    },
   });
 }

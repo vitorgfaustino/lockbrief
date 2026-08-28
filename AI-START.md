@@ -85,12 +85,13 @@ Regras obrigatórias:
 - a IA nunca deve copiar `wrangler.toml` por cima de `wrangler.local.toml`
 - a IA nunca deve substituir `wrangler.toml` operacional pelo `wrangler.toml` do upstream sem revisão manual
 - se `git merge --ff-only upstream/main` falhar por históricos divergentes ou `unrelated histories`, a IA não deve usar `--allow-unrelated-histories`, `reset --hard`, rebase automático, `git push --force` ou `git push --force-with-lease`
-- se houver conflito em `wrangler.toml`, `wrangler.local.toml`, `.dev.vars`, `.env*`, bindings D1, `database_id`, routes, variables ou secrets, parar e entregar handoff manual
+- se houver conflito em `wrangler.toml`, `wrangler.local.toml`, `.dev.vars`, `.env*`, bindings D1, namespaces de rate limit, `database_id`, routes, variables ou secrets, parar e entregar handoff manual
 
 Bindings e configuração operacional protegidos:
 
 - binding D1 `DB`
 - `[[d1_databases]]`
+- bindings `STORE_RATE_LIMITER`, `READ_RATE_LIMITER` e `RESOURCE_RATE_LIMITER`, incluindo namespaces operacionais
 - `database_name` e `database_id` reais
 - `wrangler.local.toml`
 - `.dev.vars` e `.env*`
@@ -103,7 +104,7 @@ Antes de aplicar qualquer atualização, classifique a instalação:
 
 - `fonte_publica`: checkout do upstream oficial ou fork sem valores reais; `wrangler.toml` contém o placeholder `00000000-0000-0000-0000-000000000000`.
 - `deploy_wrangler_local`: valores reais ficam em `wrangler.local.toml`; `wrangler.toml` deve continuar como template público.
-- `operacional_versionado`: repositório usado por Workers Builds/GitHub ou gerado pelo Deploy Button; `wrangler.toml` pode conter `database_id` real, routes, workers.dev, preview URLs, cron ou outros valores provisionados.
+- `operacional_versionado`: repositório usado por Workers Builds/GitHub ou gerado pelo Deploy Button; `wrangler.toml` pode conter `database_id` real, routes, workers.dev, preview URLs, cron, rate limit bindings ou outros valores provisionados.
 - `historico_incompativel`: `HEAD` e `upstream/main` não têm ancestral comum ou o fast-forward não é possível.
 
 Regras por classificação:
@@ -255,7 +256,7 @@ Quando o pedido for `Atualizar o Projeto`, a IA deve:
    - `.dev.vars` e `.env*` locais
    - `wrangler.toml` quando for configuração operacional versionada
    - `dist/` gerado localmente, quando o operador depender dele
-   - bindings D1, routes, variables, secrets e IDs reais da instância
+   - bindings D1, namespaces de rate limit, routes, variables, secrets e IDs reais da instância
 8. garantir que existe um remoto `upstream` apontando para `https://github.com/vitorgfaustino/lockbrief.git`
 9. se `upstream` não existir, criar:
 
@@ -302,7 +303,7 @@ git merge --ff-only upstream/main
 Regra específica de configuração:
 
 - deploy manual privado usa `wrangler.local.toml`; a atualização não deve sobrescrever esse arquivo
-- Workers Builds/GitHub e Deploy Button podem ter configuração operacional no painel ou no repositório gerado; a IA não deve trocar bindings, `database_id`, variables, secrets ou `wrangler.toml` operacional sem confirmação explícita
+- Workers Builds/GitHub e Deploy Button podem ter configuração operacional no painel ou no repositório gerado; a IA não deve trocar bindings, namespaces de rate limit, `database_id`, variables, secrets ou `wrangler.toml` operacional sem confirmação explícita
 - se a atualização do upstream alterar `wrangler.toml`, tratar como mudança no template público; em repositório operacional, preservar o arquivo atual e reconciliar manualmente somente as mudanças seguras
 - nunca resolver `unrelated histories` com `--allow-unrelated-histories`, rebase automático, `reset --hard` ou push forçado
 - não criar branch de trabalho `update/...` por padrão; use branch local `backup/...` somente como rollback antes de overlay protegido

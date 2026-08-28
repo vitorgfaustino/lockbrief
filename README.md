@@ -1,6 +1,6 @@
 # LockBrief — Compartilhamento seguro de segredos efêmeros
 
-Envie senhas, tokens, chaves de API ou qualquer informação sensível com segurança real — o servidor **nunca vê** o conteúdo.
+Envie senhas, tokens, chaves de API ou qualquer informação sensível com criptografia local. No cliente oficial e não modificado, o backend recebe somente o envelope criptografado e nunca recebe a chave ou a senha adicional.
 
 [Conhecer a demonstração do sistema](https://lockbrief-demo.vitorgfaustino.workers.dev)
 
@@ -10,10 +10,10 @@ Envie senhas, tokens, chaves de API ou qualquer informação sensível com segur
 
 | Problema comum | Solução LockBrief |
 |---|---|
-| Enviar senha por e-mail/WhatsApp → fica no histórico para sempre | Link de **leitura única** — o segredo se autodestrói após aberto |
-| Compartilhar `.env` ou token por chat → exposto em logs | Criptografia **AES-GCM-256 no navegador** — o servidor nunca vê o texto |
+| Enviar senha por e-mail/WhatsApp → fica no histórico para sempre | Link de **leitura única** — o envelope deixa o banco ativo após ser entregue |
+| Compartilhar `.env` ou token por chat → exposto em logs | Criptografia **AES-GCM-256 no navegador** — o backend normal não recebe o texto |
 | Ferramentas corporativas cobram por usuário | **Zero custo** — roda no plano gratuito da Cloudflare |
-| Medo de vazamento de dados do servidor | **Zero-knowledge** — o servidor armazena apenas envelope criptografado |
+| Medo de vazamento de dados do servidor | O D1 ativo armazena apenas envelope criptografado e metadados mínimos |
 
 ---
 
@@ -21,7 +21,7 @@ Envie senhas, tokens, chaves de API ou qualquer informação sensível com segur
 
 ### 1. Executar localmente
 
-Pré-requisito: Node.js `>=22.12.0`.
+Pré-requisitos: Node.js `>=22.12.0` e npm `>=11.16.0`.
 
 ```bash
 git clone https://github.com/vitorgfaustino/lockbrief.git
@@ -138,13 +138,15 @@ Esse fluxo mantém o `database_id` real apenas em `wrangler.local.toml`, arquivo
 
 - **Criptografia local**: AES-GCM-256 via Web Crypto API. O segredo nunca sai do navegador em texto claro.
 - **Senha adicional**: PBKDF2-SHA256 (210k iterações) + HKDF-SHA256. Camada extra de proteção.
+- **Envelope versionado**: novas criações usam v2 com parâmetros de KDF explícitos; links v1 existentes continuam compatíveis.
 - **Confirmação antes do consumo**: links abertos mostram uma etapa explícita antes de buscar e consumir a mensagem.
-- **Leitura única ou múltipla**: escolha se o segredo é destruído no primeiro acesso.
+- **Leitura única ou múltipla**: escolha se o envelope deixa o banco ativo no primeiro acesso.
 - **Expiração**: 1 hora, 1 dia ou 1 semana. Cron de limpeza a cada 30 minutos.
 - **Instalável no celular**: PWA online-first com cache apenas de assets públicos.
-- **Zero rastreamento**: sem contas, cookies, analytics, IP, user-agent.
+- **Sem rastreamento próprio de usuário**: sem contas, cookies, analytics comportamental ou identificador persistido pela aplicação. A infraestrutura Cloudflare ainda processa metadados técnicos e logs de invocação conforme a configuração da instância.
 - **Bloqueio de crawlers**: bots e previews conhecidos são rejeitados antes das rotas sensíveis.
-- **Zero custo**: funciona no plano gratuito da Cloudflare (100k requisições/dia, 5 GB D1 storage).
+- **Contenção antiabuso sem WAF pago**: Rate Limiting API por rota/recurso, com fallback em memória e sem IP persistido.
+- **Plano Free**: projetado para 100 mil requests/dia, D1 com 500 MB por banco e 5 GB totais na conta; limites devem ser reconfirmados antes do deploy.
 - **Open source**: AGPL-3.0. Audite, modifique, hospede você mesmo.
 
 ---
@@ -152,16 +154,16 @@ Esse fluxo mantém o `database_id` real apenas em `wrangler.local.toml`, arquivo
 ## FAQ
 
 ### O servidor pode ler meu segredo?
-**Não.** O segredo é criptografado no seu navegador antes de enviar. O servidor recebe apenas um envelope AES-GCM-256 ilegível sem a chave. A chave viaja no fragmento da URL (`#...`) que **não é enviado ao servidor** em requisições HTTP.
+No fluxo do cliente oficial e não modificado, **não**. O segredo é criptografado no navegador antes do envio, e o backend recebe apenas um envelope AES-GCM-256 ilegível sem a chave. A chave viaja no fragmento da URL (`#...`), que não é enviado em requisições HTTP. O origin e a infraestrutura que entregam o JavaScript precisam ser confiáveis para a integridade do cliente: código adulterado poderia capturar dados antes da criptografia.
 
 ### O que acontece se eu perder o link?
 O segredo é perdido. Não há recuperação — por design. Compartilhe o link com cuidado.
 
 ### Dá para usar de graça?
-**Sim.** O plano gratuito da Cloudflare oferece 100.000 requisições/dia e 5 GB de armazenamento D1. Mais que suficiente para uso pessoal ou em equipe.
+**Sim.** O projeto foi desenhado para o plano gratuito. Na consulta operacional de 27 de agosto de 2026, o plano oferecia 100.000 requisições Worker/dia, D1 com 500 MB por banco e 5 GB totais na conta. Tráfego e limites reais precisam ser monitorados pelo operador; o projeto não promete que a cota será suficiente para todo uso ou ataque.
 
 ### Como funciona a leitura única?
-Ao abrir o link, o navegador consulta apenas metadados sem consumir o segredo. O servidor só retorna o envelope criptografado e **remove o registro do banco** depois do clique em "Revelar mensagem". Se alguém tentar abrir o mesmo link depois, receberá "Segredo indisponível". Mesmo que o navegador seja fechado antes de digitar a senha correta — após esse clique, o segredo já foi removido.
+Ao abrir o link, o navegador consulta apenas metadados sem consumir o segredo. O servidor retorna o envelope criptografado e **remove o registro do banco ativo** depois do clique em "Revelar mensagem". Se alguém tentar abrir o mesmo link depois, receberá "Segredo indisponível". Mesmo que o navegador seja fechado antes de digitar a senha correta, após esse clique o aplicativo não recupera o registro. O D1 mantém histórico de Time Travel gerenciado pela Cloudflare por 7 dias no plano gratuito ou 30 dias no pago; esse histórico continua contendo somente o envelope criptografado, mas pode ser restaurado por um operador autorizado.
 
 ### Posso permitir múltiplas leituras?
 **Sim.** Desative o toggle "Destruir após leitura" na criação. O segredo permanece acessível até expirar (1h/1d/1semana).
