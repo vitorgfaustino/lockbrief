@@ -4,6 +4,8 @@ Envie senhas, tokens, chaves de API ou qualquer informação sensível com cript
 
 Este repositório é o código-fonte oficial e a base de distribuição. Não possui implantação de produção, D1 remoto próprio ou conexão operacional com a Cloudflare. Cada operador instala e mantém seus próprios recursos. A CI valida localmente e não publica o upstream.
 
+**[Acessar demonstração pública do LockBrief](https://lockbrief-demo.vitorgfaustino.workers.dev/)**
+
 ---
 
 ## Por que usar o LockBrief?
@@ -211,6 +213,8 @@ Se você modificar e operar o LockBrief por rede, ofereça aos usuários o códi
 
 Criado por [Vitor Faustino](https://github.com/vitorgfaustino).
 
-## Release candidata e demo privada
+## Release estável e demonstração pública
 
-A árvore atual prepara v1.2.1; a última release publicada consultada é v1.2.0. Correções e gates em [Gate Final](docs/GATE-FINAL-RELEASE.md). A demo é uma instalação privada que consome releases, com configuração Cloudflare própria. O [sincronizador opcional](docs/SINCRONIZACAO-DEMO.md) preserva essa configuração e exige revisão/CI/merge humanos; instalações independentes não dependem dele.
+A versão estável publicada é a [v1.2.1](https://github.com/vitorgfaustino/lockbrief/releases/tag/v1.2.1). Consulte as correções e validações históricas no [Gate Final](docs/GATE-FINAL-RELEASE.md).
+
+A [demo pública do LockBrief](https://lockbrief-demo.vitorgfaustino.workers.dev/) utiliza uma instalação operacional privada e independente, com configuração Cloudflare própria. O [sincronizador opcional](docs/SINCRONIZACAO-DEMO.md) documenta a preparação para consumir releases oficiais; instalações de terceiros permanecem independentes e atualizam seus próprios repositórios.
