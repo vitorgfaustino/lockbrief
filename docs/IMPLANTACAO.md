@@ -3,9 +3,13 @@
 ## Pré-requisitos
 
 - Node.js `>=22.12.0` para alinhar com Wrangler, Miniflare, Vite e CI.
-- npm `>=11.16.0` para aplicar `allowScripts` com bloqueio estrito de scripts de instalação não revisados.
-- Conta Cloudflare.
-- Wrangler via dependência do projeto (`npx wrangler`) ou instalação global.
+- npm `>=10.9.2`; `.npmrc` bloqueia todos os scripts de instalação com `ignore-scripts=true` e exige engines compatíveis. Não omita dependências opcionais: elas contêm os binários de esbuild/workerd para a plataforma.
+- Conta Cloudflare apenas para quem instalar uma instância remota própria.
+- Wrangler fixado na dependência do projeto (`npx --no-install wrangler`); não depender de instalação global.
+
+## Escopo da fonte oficial
+
+O upstream distribui código e templates públicos; não possui Worker de produção, D1 remoto próprio nem conexão operacional Cloudflare. CI e auditorias do upstream não realizam deploy. Os procedimentos remotos deste documento são para contas independentes dos operadores.
 
 ## Política de configuração
 
@@ -41,7 +45,7 @@ O template define `preview_urls = false` para não criar URLs de preview adicion
 ## Executar localmente
 
 ```bash
-npm install
+npm ci
 npm run dev-init
 npm run build
 npm run dev
@@ -80,7 +84,7 @@ Se o comando `git remote get-url upstream` falhar porque o remoto não existe, c
 git remote add upstream https://github.com/vitorgfaustino/lockbrief.git
 ```
 
-Depois busque e aplique somente fast-forward:
+Somente em checkout limpo com fast-forward seguro, template público e sem personalizações protegidas, siga o bloco abaixo. Em configuração operacional, use o runbook de overlay protegido:
 
 ```bash
 git fetch upstream --tags --prune
@@ -89,7 +93,7 @@ git log --oneline HEAD..upstream/main
 git merge-base HEAD upstream/main
 git merge-base --is-ancestor HEAD upstream/main
 git merge --ff-only upstream/main
-npm install
+npm ci
 npm run dev-init
 npm run build
 npm run typecheck
@@ -136,8 +140,8 @@ Use este fluxo quando a regra for não gravar nenhum ID operacional no GitHub.
 O repositório não inclui script de bootstrap remoto porque criação de D1 e deploy são ações operacionais sensíveis. Execute os passos manualmente:
 
 ```bash
-cp wrangler.toml wrangler.local.toml
-npm install
+cp -n wrangler.toml wrangler.local.toml # somente na primeira instalação; preservar se já existir
+npm ci
 npx wrangler d1 create lockbrief
 # edite somente wrangler.local.toml e substitua database_id pelo ID retornado
 npm run build
@@ -172,26 +176,38 @@ Se o repositório operacional for público, não faça commit de `database_id` r
 
 A CI aplica os seguintes gates antes de aceitar uma mudança:
 
-1. bootstrap fixo do npm 11.16.0 sem scripts e instalação reprodutível com `npm ci`;
+1. matriz Node 22/npm 10.9.2 e Node 24/npm 11.16.0, com `npm ci` e scripts de instalação bloqueados;
 2. auditoria de dependências com bloqueio em severidade alta ou crítica;
 3. verificação de whitespace com `git diff --check`;
-4. typecheck, build do cliente e suíte de integração.
+4. typecheck do Worker e do cliente, build, testes de integração/criptografia/migrations e cache PWA;
+5. migrations D1 locais repetidas, gate do template público no upstream e empacotamento Wrangler `--dry-run`. Nenhum gate executa publicação remota.
 
 As Actions de terceiros são referenciadas por SHA imutável, com a versão legível em comentário. O job de qualidade possui apenas permissão `contents: read`, não persiste credenciais do checkout e é encerrado por timeout. Como o projeto não aceita contribuições externas, esse job executa somente em pushes, PRs do mantenedor e PRs do Dependabot; código de PR externo não entra na etapa `npm ci`.
 
 O Dependabot verifica semanalmente dependências npm e GitHub Actions. PRs criados por `dependabot[bot]` não são fechados pelo workflow de PR externo, mas nenhuma atualização é mesclada ou publicada automaticamente: CI e revisão humana continuam obrigatórias.
 
-Ao atualizar dependências manualmente:
+Para atualizar dependências, revise as versões compatíveis em `package.json`, execute `npm install` para regenerar o lockfile deliberadamente e revise o diff. Depois valide a combinação candidata:
 
 ```bash
-npm install
+npm ci
 npm audit --audit-level=high
 npm run typecheck
 npm run build
 npm test
 ```
 
-Revise `.npmrc`, `package.json` e `package-lock.json` juntos. O projeto exige npm 11.16.0 ou superior, e `.npmrc` ativa `strict-allow-scripts=true`. O campo `allowScripts` aprova por nome e versão somente os scripts de instalação necessários de `esbuild` e `workerd`, e nega o script opcional de `fsevents`; uma versão executável sem decisão explícita faz a instalação falhar. Não use `--force`, `--legacy-peer-deps`, `--dangerously-allow-all-scripts`, `npm approve-scripts --all` ou uma aprovação sem versão para ocultar conflitos ou ampliar a execução de scripts; resolva a combinação compatível e valide o Worker localmente.
+Revise `.npmrc`, `package.json` e `package-lock.json` juntos. Dependências diretas estão fixadas; `npm ci` reproduz o lockfile. `ignore-scripts=true` bloqueia todos os lifecycle scripts de instalação em npm 10 e 11. `npm run build`, `npm test` e comandos explicitamente pedidos continuam funcionando. Os binários são fornecidos pelas dependências opcionais da plataforma; não use `--omit=optional`, `--ignore-scripts=false`, `--force`, `--legacy-peer-deps` ou `--dangerously-allow-all-scripts` para ocultar um erro.
+
+`@cloudflare/vitest-plugin` substitui o pacote antigo, mantendo Vitest 4 compatível. Miniflare é transitivo da combinação publicada pela Cloudflare. O override restrito `miniflare → sharp 0.35.5` corrige advisory na biblioteca nativa sem substituir Wrangler/Miniflare por versões incompatíveis. Revisar/remover o override quando o SDK incorporar uma versão corrigida; não usar `npm audit fix --force`.
+
+### Compatibilidade com Workers Builds
+
+A [imagem de build oficial](https://developers.cloudflare.com/workers/ci-cd/builds/build-image/) consultada em 08/10/2026 informa npm 10.9.2 e aceita `.node-version`; o projeto declara Node 22 nesse arquivo. A instalação automática consegue usar a política sem scripts mesmo com npm 10, antes do build. Variáveis `NODE_VERSION` já definidas pelo operador devem ser revisadas caso sejam incompatíveis; não alterá-las automaticamente.
+
+O [Deploy Button](https://developers.cloudflare.com/workers/platform/deploy-buttons/) detecta `build` e `deploy` em `package.json`. Preserve os comandos `npm run build` e `npm run deploy`; migrations usam binding `DB` e `&&` impede publicar após falha. O template público permanece com placeholder. Não usar `npm run deploy` na fonte oficial.
+
+Em Workers Builds, a [configuração de previews](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/) é distinta do deploy de produção. Não configurar `npm run deploy` ou migrations remotas como comando de preview: versões enviadas por `versions upload` usam recursos configurados e não isolam automaticamente o D1. Este upstream não habilita nem homologa previews remotos.
+
 
 ## Deploy Button
 
@@ -250,6 +266,8 @@ npm run d1:migrate:remote:private
 
 No fluxo Deploy Button/Workers Builds, o script `npm run deploy` usa `DB` como binding para que migrations funcionem mesmo quando o operador escolher outro nome de banco.
 
+A migration `0001` cria tabela/índice se ausentes; `0002` adiciona `one_time` com default 1, preservando os registros antigos como leitura única. A repetição segura é do runner `d1 migrations apply`, que usa `d1_migrations`; o SQL `ALTER TABLE` de `0002` não é idempotente isoladamente. Não editar migrations já distribuídas nem apagar seu histórico. Banco criado manualmente, com `one_time` mas sem ledger, exige inspeção e reconciliação manual; não ignorar erro de coluna duplicada nem recriar o banco. A auditoria atual não acrescenta migration.
+
 ## Cron Triggers
 
 O Worker executa limpeza de segredos expirados a cada 30 minutos via Cron Trigger configurado no template Wrangler:
@@ -300,13 +318,13 @@ Turnstile possui plano gratuito, mas não integra o fluxo padrão atual. Adicion
 
 ## Matriz do Cloudflare Free
 
-Limites oficiais consultados em 27 de agosto de 2026. Eles podem mudar e devem ser reconfirmados antes de uma release:
+Requests/CPU, D1 e quantidade/tamanho de Static Assets reconfirmados em 08/10/2026; itens Logs/WAF mantêm a consulta de 27/08/2026. Eles podem mudar e devem ser reconfirmados antes de uma release:
 
 | Recurso | Limite Free relevante | Impacto no LockBrief |
 |---|---:|---|
 | Workers requests | 100.000/dia | Toda rota dinâmica que chega ao Worker conta |
 | CPU por invocação | 10 ms | Rate limiting e validação devem permanecer leves; PBKDF2 roda no navegador |
-| Static Assets | Gratuitos e sem limite de requests | Não usar `run_worker_first` para assets públicos |
+| Static Assets | Requests gratuitos; 20.000 arquivos, 25 MiB por arquivo | Não usar `run_worker_first` para assets públicos |
 | D1 rows read | 5 milhões/dia | Índice por `id_hash` reduz leitura |
 | D1 rows written | 100.000/dia | Não usar D1 como contador por requisição |
 | D1 storage | 500 MB por banco; 5 GB por conta | Envelopes expiram em até 7 dias e cleanup é obrigatório |
@@ -315,7 +333,7 @@ Limites oficiais consultados em 27 de agosto de 2026. Eles podem mudar e devem s
 | Workers Logs | 200.000 eventos/dia; retenção de 3 dias | Template amostra 10%; operador deve revisar necessidade |
 | WAF custom rules em zona Free | Até 5, sem regex | Opcional e aplicável apenas quando houver zona/domínio controlado; não é requisito do Worker |
 
-Fontes operacionais: [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/), [D1 limits](https://developers.cloudflare.com/d1/platform/limits/), [Workers Rate Limiting API](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/), [WAF custom rules](https://developers.cloudflare.com/waf/custom-rules/) e [Turnstile plans](https://developers.cloudflare.com/turnstile/plans/).
+Fontes operacionais: [Workers limits](https://developers.cloudflare.com/workers/platform/limits/), [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/), [D1 limits](https://developers.cloudflare.com/d1/platform/limits/), [Workers Rate Limiting API](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/), [WAF custom rules](https://developers.cloudflare.com/waf/custom-rules/) e [Turnstile plans](https://developers.cloudflare.com/turnstile/plans/).
 
 ## Homologação no plano Free
 
@@ -335,13 +353,13 @@ Validação local não substitui homologação na conta real. Sem autorização 
 npm run build
 ```
 
-Compila `src/client/*.ts` em `dist/client.js`, copia CSS para `dist/styles.css`, publica `src/client/assets/*` em `dist/assets/*` e copia os arquivos PWA `src/client/manifest.webmanifest` e `src/client/sw.js` para a raiz de `dist`.
+Compila `src/client/*.ts` em `dist/client.js`, copia CSS para `dist/styles.css`, publica `src/client/assets/*` em `dist/assets/*` e gera `dist/manifest.webmanifest` e `dist/sw.js` com cache versionado por conteúdo. O build prepara uma saída temporária e só substitui `dist` após concluir; uma falha preserva a saída anterior. Arquivos gerados obsoletos não permanecem no novo output.
 
 ### PWA e Static Assets
 
-`/manifest.webmanifest`, `/sw.js` e `/assets/pwa-icon*.png` devem ser servidos como Static Assets da Cloudflare. Não configure `run_worker_first` para esses caminhos, pois isso faria solicitações de assets invocarem o Worker e consumirem a cota do plano gratuito.
+`/manifest.webmanifest`, `/sw.js` e `/assets/web-app-manifest-*.png` devem ser servidos como Static Assets da Cloudflare. Não configure `run_worker_first` para esses caminhos, pois isso faria solicitações de assets invocarem o Worker e consumirem a cota do plano gratuito.
 
-O placeholder principal do ícone fica em `src/client/assets/pwa-icon.png`. Para trocar a identidade visual instalada, substitua também `pwa-icon-192.png` e `pwa-icon-512.png` por PNGs quadrados com as dimensões correspondentes.
+O PWA usa `web-app-manifest-192x192.png` e `web-app-manifest-512x512.png`; o HTML usa `apple-touch-icon.png` (180px), `favicon-96x96.png` e `favicon.ico`. Os ícones atuais são declarados com propósito `any`; não presumir área segura de um ícone maskable. O build mantém aliases dos nomes antigos `favicon.png` e `pwa-icon*.png`, sem recriar arquivos-fonte removidos. Assets adicionais de instalações personalizadas continuam sendo copiados; não guardar material privado no diretório público `src/client/assets/`.
 
 ## Testes
 
@@ -349,7 +367,7 @@ O placeholder principal do ícone fica em `src/client/assets/pwa-icon.png`. Para
 npm test
 ```
 
-Executa a suíte de integração com Vitest + `@cloudflare/vitest-pool-workers`. Os testes usam D1 isolado e não afetam bancos de desenvolvimento ou produção.
+Executa a suíte de integração com Vitest 4 + `@cloudflare/vitest-plugin`. As migrations são lidas diretamente de `migrations/`, sem schema duplicado e sem ignorar erros de SQL. Os testes usam D1 isolado e não afetam bancos de desenvolvimento ou produção.
 
 ## Checklist de validação pré-release
 
@@ -359,7 +377,8 @@ Executa a suíte de integração com Vitest + `@cloudflare/vitest-pool-workers`.
 - [ ] Bindings de rate limit foram preservados/reconciliados sem colisão involuntária de namespace na conta.
 - [ ] `npm run typecheck` passa.
 - [ ] `npm run build` passa.
-- [ ] `npm test` passa integralmente.
+- [ ] `npm test` e `npm run test:tooling` passam integralmente.
+- [ ] `npm run check:distribution` passa no upstream público; não usar esse gate em `wrangler.toml` operacional.
 - [ ] `npx wrangler deploy --dry-run --outdir /tmp/lockbrief-dry-run` empacota o Worker.
 - [ ] `CHANGELOG.md` e `RELEASE_NOTES.md` estão atualizados.
 - [ ] `AI-START.md`, `docs/ATUALIZACAO.md` e `docs/OPERACAO-IA.md` estão alinhados se houve mudança de atualização, deploy ou operação por IA.
@@ -384,3 +403,7 @@ Executa a suíte de integração com Vitest + `@cloudflare/vitest-pool-workers`.
 - [ ] Testar retry de chave/senha incorreta sem novo fetch quando o envelope já está em memória.
 - [ ] Headers de segurança presentes: CSP, HSTS, X-Frame-Options, Referrer-Policy.
 - [ ] Cron de limpeza executando após 30 minutos.
+
+## Publicação da demo e fonte oficial
+
+O upstream não possui implantação. A demo privada consome releases sob [gates próprios](SINCRONIZACAO-DEMO.md); nenhum token Cloudflare ou deploy foi adicionado ao Actions. Antes de push de branch privada, revisar builds/previews do dashboard, pois um push pode iniciar publicação operacional. CI da sincronização usa Wrangler público somente em sandbox descartável e não imprime configuração privada.

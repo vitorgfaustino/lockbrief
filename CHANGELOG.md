@@ -6,7 +6,23 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 
 ---
 
-## [Não lançado]
+## [1.2.1] — candidata em 2026-10-08 (não publicada)
+
+### Correções e distribuição
+- Fallback de consumo verifica `meta.changes`, remove somente seu token e omite metadados de sobras consumidas; cleanup usa o campo correto.
+- Dependências de desenvolvimento atualizadas para Wrangler 4.148.0 e plugin Vitest 1.3.7 compatível com Vitest 4; patch de sharp restrito ao Miniflare e lockfile corrigido.
+- Instalação sem lifecycle scripts em npm 10/11, com engines obrigatórios e dependências opcionais; CI cobre Node 22/24 e não publica produção.
+- Typecheck inclui o cliente; envelopes recebidos são validados antes do KDF, sem alterar algoritmos, versões ou parâmetros.
+- Falhas de rede levam ao estado genérico; plaintext tem limite UTF-8 antes da criptografia; valores de senha escapam aspas em atributos HTML.
+- Build preserva output anterior em falha, remove arquivos gerados obsoletos e versiona cache PWA por conteúdo; fallback offline fica na versão ativa.
+- Novos assets fornecidos pelo mantenedor integrados ao HTML/manifesto/PWA; URLs legados mantidos por aliases no build e assets personalizados continuam publicados.
+- Testes usam migrations reais, validam upgrade do schema 0001 com dados preservados, repetição pelo ledger, concorrência e interrupção do fallback.
+- Documentação distingue upstream sem produção de instalações independentes, protege personalizações/arquivos ignorados no overlay e remove orientações de atualização incompatíveis com 1.2.0.
+
+- Toolkit opcional de sincronização por release imutável para a demo privada: overlay com conflitos, configuração protegida, CI isolada, PR sem automerge e bloqueio de mudanças de schema. Workflows ficam como templates inativos na fonte pública.
+- Fechamento automático de PRs externos restrito ao upstream oficial.
+
+Sem migration nova, alteração do template Wrangler, parâmetros criptográficos ou licença. Evidências e limites em `docs/AUDITORIA-UPSTREAM.md`.
 
 ## [1.2.0] — 2026-08-28
 

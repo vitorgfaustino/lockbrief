@@ -54,7 +54,7 @@
 
 ## Observabilidade
 
-- A aplicação não registra logs de conteúdo, IDs, payloads ou dados de usuário.
+- A aplicação não registra logs de conteúdo, IDs, payloads ou dados de usuário. O cleanup pode registrar somente a quantidade agregada de registros removidos, usando `meta.changes`; não registra os registros individuais.
 - Logs de erro do Worker usam mensagens genéricas, sem interpolar erro interno do D1.
 - A Cloudflare processa IP, dados de roteamento e outros metadados necessários para entregar e proteger o serviço. A duração e os campos disponíveis dependem do produto, plano e configuração do operador; este projeto não promete uma janela fixa de retenção da plataforma.
 - O Workers Rate Limiting API mantém contadores internos por localidade. A aplicação configura janela de 60 segundos, não consulta esses contadores e não os copia para D1 ou logs próprios; a retenção técnica interna da plataforma não é controlada pelo LockBrief.
@@ -94,3 +94,11 @@ Operadores de instâncias próprias devem:
 - Revisar e adaptar esta política conforme sua jurisdição.
 - Garantir conformidade com LGPD e demais legislações aplicáveis.
 - Manter transparência sobre o processamento de dados em sua instância.
+
+## Atualizações da fonte
+
+O upstream distribui software e não possui banco D1 remoto ou produção próprios. Esta auditoria não altera coleta, retenção, amostragem de observabilidade ou parâmetros criptográficos. A correção de consumo impede anunciar metadados de sobras já consumidas. O cache PWA continua restrito a arquivos públicos, com versão derivada de seu conteúdo e sem envelopes ou identificadores de segredo.
+
+## Automação de manutenção opcional
+
+O sincronizador da demo não recebe segredos da aplicação, não consulta D1 remoto e não registra valores operacionais do Wrangler. Relatórios incluem versões, SHA, caminhos e resultados de validação; credenciais GitHub privadas não são entregues ao upstream nem aos testes. O sandbox valida código com configuração pública, sem copiar arquivos de ambiente privados. A preparação não altera coleta ou retenção de dados do produto.

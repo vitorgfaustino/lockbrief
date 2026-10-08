@@ -140,7 +140,7 @@ Fluxo operacional recomendado:
 
 ## Variáveis e secrets do Worker
 
-O LockBrief v1.1.0 não exige secrets de runtime.
+O LockBrief v1.2.0 não exige secrets de runtime.
 
 Se uma versão futura adicionar variáveis:
 

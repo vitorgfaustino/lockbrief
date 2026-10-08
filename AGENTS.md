@@ -97,10 +97,23 @@ Este repositorio usa documentacao viva. Qualquer agente que altere codigo, plano
 ## Estado inicial reconhecido
 
 - O sistema real esta implementado em `src/` (Worker + D1 + cliente TypeScript).
-- Typecheck (`tsc --noEmit`) passa limpo no codigo do Worker.
+- Typecheck verifica separadamente o Worker e o cliente com tipos DOM.
 - Build do cliente funciona via `npm run build` (alias de `npm run build:client`, esbuild → `dist/client.js`, `dist/styles.css`, assets e arquivos PWA).
 - `npm run dev-init` cria banco D1 local e aplica migrations.
-- `npm test` executa 29 testes de integracao (Vitest + Cloudflare pool workers).
+- `npm test` executa testes de integracao, criptografia e compatibilidade com Vitest 4 + plugin Cloudflare; `npm run test:tooling` verifica o cache PWA após o build.
 - CI configurado: typecheck, build, testes, git diff --check.
 - Issue templates e PR template configurados para repositorio publico.
 - Os documentos deste repositorio evoluem junto com o codigo.
+
+## Escopo do upstream oficial
+
+- `vitorgfaustino/lockbrief` é somente código-fonte e distribuição: não possui produção, banco D1 remoto próprio ou conexão operacional Cloudflare.
+- Não executar deploy do upstream, criar recursos Cloudflare ou modificar instalações de terceiros em auditorias/manutenção da fonte.
+- Validar instalação pelo lockfile, typecheck do Worker e cliente, build, testes, migrations locais e empacotamento dry-run.
+- CI do upstream não publica produção. Deploy Button, Workers Builds e scripts remotos existem para contas independentes dos operadores.
+- Investigar falhas de clones e Dependabot separadamente por commit, runtime, lockfile e configuração operacional.
+
+## Sync opcional da demo
+
+- `docs/SINCRONIZACAO-DEMO.md` define o bootstrap e checkpoints privados. Toolkit/templates públicos não têm credenciais e não são workflows ativos do upstream.
+- Não iniciar escrita GitHub privada antes de inventariar ignorados/dist e revisar branches/previews no dashboard Cloudflare. CI local não autoriza release, PR/merge privado ou deploy.

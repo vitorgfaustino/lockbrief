@@ -20,7 +20,7 @@ export async function handleCleanup(_event: ScheduledEvent, env: Env): Promise<v
       .bind(now, now - 60)
       .run();
 
-    const changed = result.meta.changed as number;
+    const changed = result.meta.changes;
     if (changed > 0) {
       console.log(`cleanup: removed ${changed} expired secrets`);
     }

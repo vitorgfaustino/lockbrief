@@ -12,6 +12,7 @@ import {
   LEGACY_PBKDF2_ITERATIONS,
   PASSWORD_KDF,
 } from "../lib/envelope-format";
+import { validateEnvelope } from "../lib/validation";
 
 export type { Envelope } from "../lib/envelope-format";
 
@@ -20,12 +21,12 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 // ── Base64url (RFC 4648 §5, no padding) ───────────────────────
-export function base64urlEncode(bytes: Uint8Array): string {
+export function base64urlEncode(bytes: Uint8Array<ArrayBuffer>): string {
   const bin = String.fromCharCode(...Array.from(bytes));
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
-export function base64urlDecode(str: string): Uint8Array {
+export function base64urlDecode(str: string): Uint8Array<ArrayBuffer> {
   let b64 = str.replace(/-/g, "+").replace(/_/g, "/");
   while (b64.length % 4) b64 += "=";
   const bin = atob(b64);
@@ -35,30 +36,30 @@ export function base64urlDecode(str: string): Uint8Array {
 }
 
 // ── Random Generation ──────────────────────────────────────────
-export function randomBytes(n: number): Uint8Array {
+export function randomBytes(n: number): Uint8Array<ArrayBuffer> {
   return crypto.getRandomValues(new Uint8Array(n));
 }
 
 // ── SHA-256 for idHash ─────────────────────────────────────────
-export async function sha256(data: Uint8Array): Promise<Uint8Array> {
+export async function sha256(data: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
   const digest = await crypto.subtle.digest("SHA-256", data);
   return new Uint8Array(digest);
 }
 
-export async function computeIdHash(rawId: Uint8Array): Promise<string> {
+export async function computeIdHash(rawId: Uint8Array<ArrayBuffer>): Promise<string> {
   const digest = await sha256(rawId);
   return base64urlEncode(digest);
 }
 
 // ── AES-GCM Encrypt / Decrypt ──────────────────────────────────
-async function importAesKey(keyBytes: Uint8Array): Promise<CryptoKey> {
+async function importAesKey(keyBytes: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
   return crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
 export async function encryptAes(
   plaintext: string,
-  key: Uint8Array
-): Promise<{ iv: Uint8Array; ciphertext: Uint8Array }> {
+  key: Uint8Array<ArrayBuffer>
+): Promise<{ iv: Uint8Array<ArrayBuffer>; ciphertext: Uint8Array<ArrayBuffer> }> {
   const iv = randomBytes(12);
   const aesKey = await importAesKey(key);
   const plainBytes = encoder.encode(plaintext);
@@ -71,9 +72,9 @@ export async function encryptAes(
 }
 
 export async function decryptAes(
-  iv: Uint8Array,
-  ciphertext: Uint8Array,
-  key: Uint8Array
+  iv: Uint8Array<ArrayBuffer>,
+  ciphertext: Uint8Array<ArrayBuffer>,
+  key: Uint8Array<ArrayBuffer>
 ): Promise<string> {
   const aesKey = await importAesKey(key);
   const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, aesKey, ciphertext);
@@ -88,9 +89,9 @@ export async function decryptAes(
 // ── PBKDF2-SHA256 ──────────────────────────────────────────────
 export async function derivePbkdf2(
   password: string,
-  salt: Uint8Array,
+  salt: Uint8Array<ArrayBuffer>,
   iterations = LEGACY_PBKDF2_ITERATIONS
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const passwordBytes = encoder.encode(password);
   try {
     const keyMaterial = await crypto.subtle.importKey(
@@ -113,9 +114,9 @@ export async function derivePbkdf2(
 
 // ── HKDF-SHA256 ────────────────────────────────────────────────
 export async function deriveHkdf(
-  ikm: Uint8Array,
+  ikm: Uint8Array<ArrayBuffer>,
   infoText = LEGACY_HKDF_INFO
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const info = encoder.encode(infoText);
   try {
     const hkdfKey = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
@@ -131,7 +132,7 @@ export async function deriveHkdf(
 }
 
 // ── Combined KDF ───────────────────────────────────────────────
-export function combineKeys(key: Uint8Array, kPwd: Uint8Array): Uint8Array {
+export function combineKeys(key: Uint8Array<ArrayBuffer>, kPwd: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> {
   const combined = new Uint8Array(64);
   combined.set(key, 0);
   combined.set(kPwd, 32);
@@ -140,7 +141,7 @@ export function combineKeys(key: Uint8Array, kPwd: Uint8Array): Uint8Array {
 
 export async function createEnvelope(
   plaintext: string,
-  key: Uint8Array,
+  key: Uint8Array<ArrayBuffer>,
   password?: string
 ): Promise<{ envelope: Envelope; idHash: string; rawIdB64: string }> {
   const rawId = randomBytes(32);
@@ -153,10 +154,10 @@ export async function createEnvelope(
     rawId.fill(0);
   }
 
-  let finalKey: Uint8Array = key;
-  let derivedFinalKey: Uint8Array | null = null;
-  let passwordKey: Uint8Array | null = null;
-  let combinedKey: Uint8Array | null = null;
+  let finalKey: Uint8Array<ArrayBuffer> = key;
+  let derivedFinalKey: Uint8Array<ArrayBuffer> | null = null;
+  let passwordKey: Uint8Array<ArrayBuffer> | null = null;
+  let combinedKey: Uint8Array<ArrayBuffer> | null = null;
   let kdf: Envelope["kdf"] = "none";
   let salt: string | null = null;
 
@@ -209,13 +210,14 @@ export async function createEnvelope(
 
 export async function openEnvelope(
   envelope: Envelope,
-  key: Uint8Array,
+  key: Uint8Array<ArrayBuffer>,
   password?: string
 ): Promise<string> {
-  let finalKey: Uint8Array = key;
-  let derivedFinalKey: Uint8Array | null = null;
-  let passwordKey: Uint8Array | null = null;
-  let combinedKey: Uint8Array | null = null;
+  if (!validateEnvelope(envelope)) throw new Error("Invalid envelope");
+  let finalKey: Uint8Array<ArrayBuffer> = key;
+  let derivedFinalKey: Uint8Array<ArrayBuffer> | null = null;
+  let passwordKey: Uint8Array<ArrayBuffer> | null = null;
+  let combinedKey: Uint8Array<ArrayBuffer> | null = null;
 
   try {
     if (envelope.kdf === PASSWORD_KDF) {

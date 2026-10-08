@@ -1,6 +1,34 @@
+# Release Notes — LockBrief v1.2.1 (candidata)
+
+Preparada em 08/10/2026; ainda sem publicação, tag ou CI remota. A última release estável consultada é v1.2.0. O commit final deve receber CI aprovada antes da criação de uma nova tag; nenhuma tag existente será reutilizada.
+
+## Correções
+
+Corrige consumo único no fallback D1, metadados após consumo e contabilização de cleanup. Atualiza dependências, fixa versões diretas, bloqueia scripts de instalação e valida Worker e cliente em Node 22/24 e npm 10/11. O build substitui assets somente após sucesso e invalida o cache PWA por conteúdo; novos ícones do mantenedor mantêm aliases das URLs anteriores.
+
+O cliente valida envelopes antes do KDF, trata falhas de rede sem repetir o fetch consumidor, valida o limite UTF-8 e escapa aspas em senha apresentada no resultado. AES-GCM, PBKDF2/HKDF, envelopes v1/v2, links, API, TTL, migrations 0001/0002 e AGPL-3.0 permanecem compatíveis.
+
+## Atualização
+
+Seguir `docs/ATUALIZACAO.md`: preservar Wrangler operacional, D1, bindings, secrets, domínio, rotas e personalizações; reconstruir Worker e assets juntos. Não há migration nova ou binding novo em relação a 1.2.0. Ao partir de 1.1.x, revisar manualmente os rate limiters de 1.2.0. Clientes 1.1.x já abertos continuam sem compreender novos envelopes v2 com senha; recarregar antes de criar/abrir novas notas, preservando a sessão de uma nota já consumida.
+
+Node mínimo 22.12.0 e npm mínimo 10.9.2; manter dependências opcionais. Revisar versões e comandos definidos no Workers Builds. Personalizações somente em `dist` precisam ser reconciliadas com as fontes antes do build.
+
+## Sincronização opcional
+
+`tools/upstream-sync/` fornece controlador e templates privados, sem credenciais da demo no upstream. Consome somente releases estáveis por tag+SHA, preserva configuração operacional, bloqueia conflitos e schema e exige revisão humana de PR/CI/merge. Instalações independentes não dependem dele. Bootstrap e recuperação em `docs/SINCRONIZACAO-DEMO.md`.
+
+## Evidências e pendências
+
+`docs/GATE-FINAL-RELEASE.md` registra os gates finais executados e seus limites. CI Linux, publicação da release, bootstrap/sincronização remota e deploy continuam pendentes de autorização e execução separadas. Não houve deploy ou migration remota nesta preparação.
+
+---
+
 # Release Notes — LockBrief v1.2.0
 
 Data: 2026-08-28
+
+Estado do checkout em 08/10/2026: há correções ainda não lançadas descritas em `CHANGELOG.md` e [`docs/AUDITORIA-UPSTREAM.md`](docs/AUDITORIA-UPSTREAM.md). A seção de validação abaixo registra a entrega histórica de 1.2.0; não é um resultado atual de CI ou deploy. A política atual de instalação bloqueia todos os scripts (`ignore-scripts=true`) em npm 10/11, substituindo a allowlist original.
 
 ## Resumo
 

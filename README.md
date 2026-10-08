@@ -2,7 +2,7 @@
 
 Envie senhas, tokens, chaves de API ou qualquer informação sensível com criptografia local. No cliente oficial e não modificado, o backend recebe somente o envelope criptografado e nunca recebe a chave ou a senha adicional.
 
-[Conhecer a demonstração do sistema](https://lockbrief-demo.vitorgfaustino.workers.dev)
+Este repositório é o código-fonte oficial e a base de distribuição. Não possui implantação de produção, D1 remoto próprio ou conexão operacional com a Cloudflare. Cada operador instala e mantém seus próprios recursos. A CI valida localmente e não publica o upstream.
 
 ---
 
@@ -21,12 +21,12 @@ Envie senhas, tokens, chaves de API ou qualquer informação sensível com cript
 
 ### 1. Executar localmente
 
-Pré-requisitos: Node.js `>=22.12.0` e npm `>=11.16.0`.
+Pré-requisitos: Node.js `>=22.12.0` e npm `>=10.9.2`.
 
 ```bash
 git clone https://github.com/vitorgfaustino/lockbrief.git
 cd lockbrief
-npm install
+npm ci
 npm run dev-init
 npm run build
 npm run dev
@@ -60,14 +60,14 @@ Se `upstream` não existir, crie o remoto:
 git remote add upstream https://github.com/vitorgfaustino/lockbrief.git
 ```
 
-Depois busque e aplique somente fast-forward:
+Depois classifique a instalação conforme o runbook. O bloco abaixo só se aplica a checkout limpo com fast-forward seguro e `wrangler.toml` público, sem configuração operacional ou personalizações protegidas:
 
 ```bash
 git fetch upstream --tags --prune
 git merge-base HEAD upstream/main
 git merge-base --is-ancestor HEAD upstream/main
 git merge --ff-only upstream/main
-npm install
+npm ci
 npm run dev-init
 npm run build
 npm run typecheck
@@ -112,8 +112,8 @@ Conecte o repositório ao Cloudflare Workers Builds para publicar a cada `git pu
 ```bash
 git clone https://github.com/vitorgfaustino/lockbrief.git
 cd lockbrief
-cp wrangler.toml wrangler.local.toml
-npm install
+cp -n wrangler.toml wrangler.local.toml # somente na primeira instalação; preservar se já existir
+npm ci
 npx wrangler d1 create lockbrief
 # edite somente wrangler.local.toml e substitua database_id pelo ID retornado
 npm run build
@@ -178,12 +178,14 @@ Ao abrir o link, o navegador consulta apenas metadados sem consumir o segredo. O
 | Banco | Cloudflare D1 (SQLite) |
 | Criptografia | Web Crypto API (AES-GCM-256, PBKDF2, HKDF) |
 | Frontend | TypeScript + CSS (esbuild) |
-| Testes | Vitest + @cloudflare/vitest-pool-workers |
+| Testes | Vitest 4 + @cloudflare/vitest-plugin |
 | Deploy | Wrangler, Deploy Button, Workers Builds |
 
 ---
 
 ## Documentação
+
+Auditoria local e matriz de impacto: [`docs/AUDITORIA-UPSTREAM.md`](docs/AUDITORIA-UPSTREAM.md).
 
 | Documento | Conteúdo |
 |---|---|
@@ -208,3 +210,7 @@ AGPL-3.0 — veja [LICENSE](LICENSE) e [`docs/LICENCA.md`](docs/LICENCA.md).
 Se você modificar e operar o LockBrief por rede, ofereça aos usuários o código-fonte correspondente da versão modificada. Isso não exige publicar `wrangler.local.toml`, `.dev.vars`, `.env`, tokens, secrets ou `database_id` real.
 
 Criado por [Vitor Faustino](https://github.com/vitorgfaustino).
+
+## Release candidata e demo privada
+
+A árvore atual prepara v1.2.1; a última release publicada consultada é v1.2.0. Correções e gates em [Gate Final](docs/GATE-FINAL-RELEASE.md). A demo é uma instalação privada que consome releases, com configuração Cloudflare própria. O [sincronizador opcional](docs/SINCRONIZACAO-DEMO.md) preserva essa configuração e exige revisão/CI/merge humanos; instalações independentes não dependem dele.

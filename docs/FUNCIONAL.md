@@ -74,7 +74,7 @@ O service worker é online-first. Ele só intercepta `GET` de assets públicos c
 1. Validar request e `idHash`
 2. Tentar `DELETE FROM secrets WHERE one_time = 1 ... RETURNING encrypted_payload`
 3. Se sucesso: retornar payload já removido do D1
-4. Fallback, se `DELETE ... RETURNING` falhar no runtime: `UPDATE` → `changes()` → `SELECT` pelo token → `DELETE`
+4. Fallback, se `DELETE ... RETURNING` falhar no runtime: `UPDATE` → verificar `meta.changes = 1` → `SELECT` pelo token → `DELETE` condicionado ao mesmo token
 5. Se nenhum resultado: tentar `SELECT WHERE one_time = 0` (multi-leitura)
 6. Se nenhum resultado: erro genérico
 
@@ -85,7 +85,7 @@ O service worker é online-first. Ele só intercepta `GET` de assets públicos c
 
 ## API: POST /api/info
 
-Retorna metadados do segredo **sem consumi-lo**.
+Retorna metadados do segredo **sem consumi-lo**. Registros com `consumed_at` preenchido não retornam metadados, inclusive sobras de um fallback interrompido.
 
 ### Request
 ```json
@@ -194,3 +194,19 @@ A versão do envelope não é a versão do fragmento de link. O fragmento contin
 - `GET /robots.txt` retorna `Disallow: /`.
 - User-Agents conhecidos de crawlers e bots de preview recebem `403`.
 - Requisições `HEAD`, `Purpose: prefetch`, `X-Purpose: preview` ou `Sec-Purpose: prefetch/prerender/preview` recebem `403`.
+
+## Toolchain e compatibilidade de distribuição
+
+- Node.js >=22.12.0, npm >=10.9.2; `.npmrc` exige engines e bloqueia scripts de instalação.
+- Dependências diretas fixadas e `package-lock.json` versionado; instalação reproduzida por `npm ci`, com dependências opcionais da plataforma.
+- `npm run typecheck` verifica Worker e cliente em configurações próprias; esbuild continua responsável pelo bundle.
+- Testes usam Vitest 4 e `@cloudflare/vitest-plugin`, com migrations reais lidas do disco e D1 local isolado por arquivo.
+- Build preenche o marcador de cache do service worker com hash dos assets públicos. O fallback offline consulta somente o cache da versão ativa.
+- O limite de plaintext no formulário é medido em bytes UTF-8 antes da criptografia; contador visual continua contando caracteres.
+- O cliente valida o envelope antes de derivar chaves; v1/v2 e allowlist de parâmetros permanecem iguais.
+
+Os ícones PWA passam a usar `web-app-manifest-192x192.png`/`512x512.png`, com propósito `any`. Apple Touch usa `apple-touch-icon.png`. O build preserva os URLs legados `favicon.png` e `pwa-icon*.png` como aliases. Assets adicionais continuam publicados e o output é substituído somente após build completo.
+
+## Distribuição por release
+
+A manutenção candidata 1.2.1 conserva schema, migrations 0001/0002, API, TTL e envelopes v1/v2. O controlador opcional em `tools/upstream-sync/` pertence à manutenção do repositório privado e não é binding, rota ou dependência do Worker. Contratos do overlay e limites de automação estão em [SINCRONIZACAO-DEMO.md](SINCRONIZACAO-DEMO.md).

@@ -1,6 +1,6 @@
 # AI-START
 
-Este arquivo é a entrada única para qualquer IA operar o LockBrief v1.1.0 com segurança.
+Este arquivo é a entrada única para qualquer IA operar o LockBrief v1.2.1 (candidato local) com segurança.
 
 O objetivo dele é permitir que a IA:
 
@@ -12,6 +12,12 @@ O objetivo dele é permitir que a IA:
 - nunca grave segredos, tokens, IDs reais de recursos ou configuração privada no GitHub
 
 Se a IA recebeu apenas este arquivo, ela deve conseguir orientar ou executar o fluxo operacional sem inventar dados sensíveis nem pular checkpoints importantes.
+
+## Limite do upstream oficial
+
+`vitorgfaustino/lockbrief` distribui código. Não possui produção, D1 remoto ou conexão operacional Cloudflare. Uma auditoria ou manutenção desse upstream autoriza instalação reprodutível, build, testes, D1 local e empacotamento `--dry-run`; não autoriza deploy, criação de recursos, consulta de contas ou alteração de instalações de terceiros. Não pergunte como o upstream publica: ele não publica uma instância.
+
+Os fluxos remotos abaixo são instruções para operadores de instalações independentes. Erros de clones e PRs do Dependabot devem ser investigados pelo commit, lockfile, runtime e configuração do clone, sem presumir falha da `main` oficial.
 
 ## Leitura obrigatória
 
@@ -28,7 +34,7 @@ Leia nesta ordem antes de agir:
 
 ## Estado atual do produto
 
-LockBrief v1.1.0 é um compartilhador de segredos efêmeros com:
+LockBrief v1.2.1 (candidato local) é um compartilhador de segredos efêmeros com:
 
 - criptografia AES-GCM-256 no navegador (Web Crypto API)
 - derivação de chave com senha adicional via PBKDF2-SHA256 + HKDF-SHA256
@@ -201,7 +207,7 @@ Regra:
 
 Use quando o pedido for `Executar o Projeto`, `Iniciar o Projeto` ou execução local manual.
 
-Antes de qualquer `npm install`, a IA deve descobrir:
+Antes de qualquer `npm ci`, a IA deve descobrir:
 
 1. a pasta atual já é a raiz final do projeto?
 2. a pasta atual já possui `.git` do usuário?
@@ -217,7 +223,7 @@ Regras:
 Fluxo:
 
 ```bash
-npm install
+npm ci
 npm run dev-init
 npm run typecheck
 npm run build
@@ -293,12 +299,12 @@ git merge --ff-only upstream/main
 ```
 
 16. se `git merge-base` não retornar ancestral comum, se `git merge --ff-only` falhar ou se `wrangler.toml` atual for operacional, não forçar histórico; criar apenas branch local de rollback `backup/...` e usar o fluxo de overlay protegido de `docs/ATUALIZACAO.md` quando não houver conflito conceitual
-17. rodar `npm install`
+17. rodar `npm ci`
 18. rodar `npm run dev-init`
 19. rodar `npm run build`
 20. rodar `npm run typecheck`
 21. rodar `npm test`
-22. aplicar migrations remotas e publicar apenas se o método de deploy permitir
+22. entregar handoff; aplicar migrations remotas e publicar somente em instalação do operador, com autorização explícita e configuração revisada
 
 Regra específica de configuração:
 
@@ -326,8 +332,8 @@ Usado quando o operador publica manualmente da própria máquina.
 Fluxo recomendado:
 
 ```bash
-cp wrangler.toml wrangler.local.toml
-npm install
+cp -n wrangler.toml wrangler.local.toml # somente na primeira instalação; preservar se já existir
+npm ci
 npx wrangler d1 create lockbrief
 # edite somente wrangler.local.toml e substitua database_id pelo ID retornado
 npm run build
@@ -351,7 +357,7 @@ Usado quando o operador pede: "leia `AI-START.md` e execute o projeto".
 
 Regras:
 
-1. para execução local, a IA pode rodar `npm install`, `npm run dev-init`, `npm run build`, `npm run typecheck`, `npm test` e `npm run dev`
+1. para execução local, a IA pode rodar `npm ci`, `npm run dev-init`, `npm run build`, `npm run typecheck`, `npm test` e `npm run dev`
 2. para deploy remoto, a IA deve perguntar o método de publicação antes
 3. a IA nunca deve escrever valores reais em `wrangler.toml`
 4. se for deploy manual, a IA deve usar `wrangler.local.toml`
@@ -401,7 +407,7 @@ Após o deploy via botão, se for trabalhar localmente:
 ```bash
 git clone <repo-gerado-pelo-deploy-button>
 cd lockbrief
-npm install
+npm ci
 npm run build
 npm run dev-init
 npm run dev
@@ -452,7 +458,7 @@ Setup local completo:
 
 ```bash
 node --version  # precisa ser >=22.12.0
-npm install
+npm ci
 npm run dev-init
 npm run build
 npm run dev
@@ -500,7 +506,7 @@ Testes:
 npm test
 ```
 
-Atualizar pelo upstream oficial:
+Atualizar pelo upstream oficial (o merge abaixo é exclusivo de fast-forward seguro com template público; em instalação operacional usar o runbook protegido):
 
 ```bash
 git status --short
@@ -512,7 +518,7 @@ git diff --name-only HEAD..upstream/main
 git merge-base HEAD upstream/main
 git merge-base --is-ancestor HEAD upstream/main
 git merge --ff-only upstream/main
-npm install
+npm ci
 npm run dev-init
 npm run build
 npm run typecheck
@@ -530,7 +536,7 @@ Se não houver ancestral comum, se o fast-forward falhar ou se o `wrangler.toml`
 Deploy CLI manual:
 
 ```bash
-cp wrangler.toml wrangler.local.toml
+cp -n wrangler.toml wrangler.local.toml # somente na primeira instalação; preservar se já existir
 npx wrangler d1 create lockbrief
 # edite somente wrangler.local.toml e substitua database_id pelo ID retornado
 npm run build
@@ -562,5 +568,9 @@ Se a IA seguir este arquivo corretamente, ela deve conseguir:
 
 ---
 
-Versão 1.1.0
+Versão candidata 1.2.1
 Criado por Vitor Faustino — vitorfaustino.com.br
+
+## Demo privada e release
+
+A demo oficial consome releases estáveis do upstream; não é origem de desenvolvimento. O mecanismo opcional e seus gates estão em `docs/SINCRONIZACAO-DEMO.md`. O upstream não possui credenciais nem recursos operacionais da demo. Push, tag/release, PR privada, merge e deploy exigem os checkpoints humanos descritos ali. Não confundir a versão candidata local com a última release publicada.

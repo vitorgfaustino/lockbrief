@@ -1,15 +1,15 @@
-const CACHE_NAME = "lockbrief-static-v1.1.0";
+const CACHE_NAME = "lockbrief-static-__STATIC_CACHE_VERSION__";
 
 const STATIC_PATHS = [
   "/client.js",
   "/styles.css",
   "/manifest.webmanifest",
   "/assets/favicon.ico",
-  "/assets/favicon.png",
+  "/assets/favicon-96x96.png",
   "/assets/lockbrief.png",
-  "/assets/pwa-icon.png",
-  "/assets/pwa-icon-192.png",
-  "/assets/pwa-icon-512.png",
+  "/assets/apple-touch-icon.png",
+  "/assets/web-app-manifest-192x192.png",
+  "/assets/web-app-manifest-512x512.png",
 ];
 
 const STATIC_PATH_SET = new Set(STATIC_PATHS);
@@ -55,7 +55,8 @@ async function networkFirst(request) {
     }
     return response;
   } catch (error) {
-    const cached = await caches.match(request);
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(request);
     if (cached) return cached;
     throw error;
   }

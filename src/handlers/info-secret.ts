@@ -56,7 +56,7 @@ export async function handleInfo(request: Request, env: Env): Promise<Response> 
 
   const row = await env.DB.prepare(
     `SELECT one_time, expires_at, encrypted_payload FROM secrets
-     WHERE id_hash = ?1 AND expires_at > ?2`
+     WHERE id_hash = ?1 AND expires_at > ?2 AND consumed_at IS NULL`
   )
     .bind(idHash, now)
     .first<{ one_time: number; expires_at: number; encrypted_payload: string }>();

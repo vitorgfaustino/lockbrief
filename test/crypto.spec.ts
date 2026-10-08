@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   base64urlEncode,
+  base64urlDecode,
   combineKeys,
   createEnvelope,
   deriveHkdf,
@@ -19,6 +20,29 @@ import {
 } from "../src/lib/envelope-format";
 
 describe("envelopes criptograficos", () => {
+  it("abre vetor v1 fixo independente dos helpers atuais", async () => {
+    // Vetor sintético gerado com node:crypto (PBKDF2/HKDF/AES-GCM).
+    const key = base64urlDecode("AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8");
+    const envelope: Envelope = {
+      v: 1, alg: "AES-GCM-256", iv: "CQkJCQkJCQkJCQkJ",
+      ciphertext: "w-HB_KO1VJlb6BPLE85uOUo-5PonPKrBQ0C3S5d0O-qqvp3gOm-ZfaBcLOo",
+      kdf: PASSWORD_KDF, salt: "BwcHBwcHBwcHBwcHBwcHBw",
+    };
+    try {
+      await expect(openEnvelope(envelope, key, "senha-legada-sintetica")).resolves.toBe("  segredo legado sintético\n");
+    } finally {
+      key.fill(0);
+    }
+  });
+
+  it("rejeita KDF desconhecido antes de derivar no navegador", async () => {
+    const key = randomBytes(32);
+    const { envelope } = await createEnvelope("sintético", key, "senha-sintetica");
+    const untrusted = { ...envelope, kdfParams: { iterations: 999999999, hkdfInfo: CURRENT_HKDF_INFO } } as Envelope;
+    await expect(openEnvelope(untrusted, key, "senha-sintetica")).rejects.toThrow("Invalid envelope");
+    key.fill(0);
+  });
+
   it("cria envelope v2 sem senha e abre o plaintext", async () => {
     const key = randomBytes(32);
     try {

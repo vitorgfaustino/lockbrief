@@ -5,7 +5,7 @@
 ### Tela Criar
 - Formulário dividido em blocos: Mensagem, Proteção, Expiração e Leitura.
 - Título principal: "Crie um segredo seguro.", sem subtítulo introdutório abaixo.
-- Bloco Mensagem com textarea (64 KB máximo), contador de caracteres ao vivo e microcopy compacto "Criptografia local." alinhado na mesma linha quando houver largura disponível.
+- Bloco Mensagem com textarea (64 KB máximo em bytes UTF-8, validado antes de criptografar; excesso preserva o texto e mostra a validação do campo), contador de caracteres ao vivo e microcopy compacto "Criptografia local." alinhado na mesma linha quando houver largura disponível.
 - O campo de mensagem usa label acessível, mas não exibe o texto visual "Segredo" acima do textarea.
 - Bloco Proteção com controle segmentado para escolher entre chave automática e senha humana.
 - Chave automática é o modo padrão mais forte. O resultado exibe link completo, link sem chave e chave separada.
@@ -21,6 +21,7 @@
 
 ### Tela Criado (sem senha)
 - Exibe 3 cards: Link completo, Link sem chave e Chave.
+- Senhas com aspas e caracteres especiais são exibidas literalmente, sem criar atributos HTML.
 - Cada card tem explicação de uso, campo somente leitura com contraste reforçado e botão de copiar com ícone plano e feedback "Copiado".
 - Em valores longos, o campo somente leitura quebra linha para facilitar leitura e conferência no mobile.
 - Exibe resumo local da configuração: expiração, leitura e proteção usada. O resumo não contém segredo, chave, senha, `rawId`, `idHash` ou payload.
@@ -87,6 +88,8 @@
 - Segredo exibido em `textContent`, botão "Copiar".
 
 ### Tela Indisponível
+- Falhas de rede ou resposta inválida durante criação, consulta inicial e busca do envelope levam ao estado genérico indisponível. Campos de criação são limpos nas falhas terminais, sem registrar conteúdo.
+- A aplicação não repete automaticamente o fetch consumidor depois de erro de transporte: a resposta pode ter sido perdida após consumo no servidor.
 - Mensagem genérica única: "Não foi possível abrir este segredo. Para proteger a privacidade, o LockBrief não informa a causa exata."
 - Sem distinção entre expirado, consumido, inexistente, chave/senha incorreta.
 - Exibe orientações genéricas sobre causas possíveis sem revelar o estado real do segredo.
@@ -104,8 +107,10 @@
 
 ### PWA e instalação no celular
 - A aplicação publica manifesto PWA e ícones para permitir instalação pelo fluxo nativo do navegador em celulares e desktops compatíveis.
+- O manifesto usa os novos ícones de 192px/512px como `any`, e o HTML referencia Apple Touch de 180px e favicon de 96px. Os caminhos antigos continuam disponíveis como aliases no build para clientes existentes.
 - O modo instalado abre o LockBrief em janela standalone, usando `/` como tela inicial.
 - O PWA é online-first: criar, consultar metadados e revelar segredos continuam exigindo rede e não existe fila offline.
+- Cada build versiona o cache pelo conteúdo dos assets públicos; o service worker limpa caches antigos e usa somente o cache da versão ativa para fallback offline. Abas já abertas continuam com o JavaScript carregado até recarga.
 - O service worker usa cache local apenas para arquivos públicos estáticos do app. Ele não cacheia HTML, rotas `/api/*`, envelopes criptografados, payloads, segredos, chaves ou senhas.
 - A instalação não adiciona botão próprio dentro da interface; o usuário usa a ação de instalação oferecida pelo navegador.
 
@@ -128,7 +133,7 @@
 | 403 | Bot, crawler ou preview bloqueado | `invalid_request` em rotas JSON; texto genérico em HTML |
 | 404 | Segredo indisponível (não existe, expirou, consumido, colisão) | `not_available` |
 | 429 | Abuse control / throttle | `invalid_request` |
-| 500 | Erro interno | `invalid_request` |
+| 500 | Erro interno | `invalid_request` ou `not_available` na barreira global |
 
 ## Sanitização
 
@@ -157,3 +162,7 @@
 - **Desktop amplo (>=1180px)**: largura máxima do layout de 1366px, mantendo a coluna principal em 708px e usando o espaço extra para ampliar a sidebar informativa.
 - **Tablet (640-959px)**: uma coluna, painel abaixo.
 - **Mobile (<640px)**: cards e painel informativo ocupam a largura total da viewport e começam alinhados ao menu, sem espaçamento vertical externo, sem cantos arredondados laterais, mantendo padding interno para evitar texto grudado nas bordas. Botões seguem com 44px+ e texto ajustado.
+
+## Atualização de manutenção 1.2.1
+
+Atualizar Worker e assets juntos incorpora as correções de falha, limite UTF-8 e cache descritas neste documento, sem mudar formato de links/envelopes. Ícones novos mantêm URLs antigas por aliases. O sincronizador opcional da demo não cria um novo fluxo de produto nem requisito para outras instalações; seu processo de PR/CI/merge está no [runbook privado](SINCRONIZACAO-DEMO.md).

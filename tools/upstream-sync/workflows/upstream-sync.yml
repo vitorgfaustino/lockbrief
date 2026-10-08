@@ -1,0 +1,65 @@
+# Template opcional: instalar somente no repositório privado da demo.
+name: Consultar e preparar release estável
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [detect, prepare-pr]
+        default: detect
+      approval:
+        description: Para PR, confirmar ESCOPO-CLOUDFLARE-REVISADO após revisão humana
+        type: string
+        default: ''
+  schedule:
+    - cron: '17 8 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: upstream-release-sync
+  cancel-in-progress: false
+jobs:
+  detect:
+    if: github.repository == 'vitorgfaustino/lockbrief-demo'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+      - run: node tools/upstream-sync/cli.mjs detect .
+  prepare:
+    needs: detect
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.mode == 'prepare-pr' &&
+      inputs.approval == 'ESCOPO-CLOUDFLARE-REVISADO' && vars.SYNC_PR_WRITES_APPROVED == 'true'
+    # Configurar reviewers se o plano GitHub permitir. O dispatch continua manual.
+    environment: demo-sync
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+      - run: npm install --global npm@10.9.2 --ignore-scripts
+      - run: node tools/upstream-sync/cli.mjs prepare . "$RUNNER_TEMP/lockbrief-sync.json"
+      - run: >-
+          if test -f "$RUNNER_TEMP/lockbrief-sync.json"; then
+          node tools/upstream-sync/cli.mjs publish . "$RUNNER_TEMP/lockbrief-sync.json"; fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SYNC_PR_WRITES_APPROVED: ${{ vars.SYNC_PR_WRITES_APPROVED }}

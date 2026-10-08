@@ -6,6 +6,10 @@ Orientar agentes de IA a operar o LockBrief sem adivinhar dados, sem ultrapassar
 
 `AI-START.md` continua sendo a entrada unica. Este documento e o contrato operacional de apoio para intencoes aceitas, limites de automacao e pontos de parada.
 
+## Auditoria e manutenção do upstream
+
+No upstream oficial, a intenção é `auditar_upstream`: revisar e corrigir fonte, dependências, lockfile, CI e documentação; validar apenas localmente e por inspeção de documentação oficial. O upstream não opera produção nem D1 remoto. Não executar publicação, criar recursos, acessar contas ou atualizar instâncias de terceiros. Os checkpoints de publicação abaixo aplicam-se a instalações do operador, não à fonte oficial.
+
 ## Regras canonicas
 
 - leia `AI-START.md` primeiro
@@ -42,7 +46,7 @@ Orientar agentes de IA a operar o LockBrief sem adivinhar dados, sem ultrapassar
 
 | Chave | Frases aceitas | O que pode automatizar | Onde parar |
 |---|---|---|---|
-| `executar_local` | `Executar o Projeto`, `Iniciar o Projeto`, `rodar local` | `npm install`, `npm run dev-init`, build, typecheck, testes e dev server | antes de criar D1 remoto ou publicar Worker |
+| `executar_local` | `Executar o Projeto`, `Iniciar o Projeto`, `rodar local` | `npm ci`, `npm run dev-init`, build, typecheck, testes e dev server | antes de criar D1 remoto ou publicar Worker |
 | `continuar_configuracao` | `Continuar configuracao`, `retomar setup` | revisar estado atual e executar o proximo passo local seguro | em qualquer checkpoint de Cloudflare, GitHub ou segredo |
 | `atualizar_projeto` | `Atualizar o Projeto`, `pull latest version` | fluxo de `docs/ATUALIZACAO.md`, dependencias, fast-forward seguro ou overlay protegido e validacao local | antes de sobrescrever mudancas locais, substituir `wrangler.toml` operacional, alterar bindings ou fazer push/deploy |
 | `aplicar_migrations` | `Aplicar migrations`, `rodar migrations` | migrations locais; remotas somente com metodo confirmado | se o banco alvo, ambiente ou binding estiver indefinido |
@@ -132,3 +136,7 @@ Seguindo este contrato, a IA deve conseguir:
 - distinguir template publico de configuracao operacional
 - validar antes de publicar
 - parar antes de qualquer decisao irreversivel ou privada
+
+## Gate de release e demo privada
+
+Preparar uma release no upstream não autoriza publicar Git, criar tag/release ou operar Cloudflare. A demo é consumidor privado de releases estáveis e nunca origem de código. O [runbook específico](SINCRONIZACAO-DEMO.md) define estado tag/SHA, conflitos, CI isolada, bootstrap, aprovação de escrita privada, PR/merge humanos e rollback sem apagar D1. Não registrar valores operacionais no relatório.

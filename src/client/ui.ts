@@ -253,6 +253,7 @@ function wireCreateEvents(callbacks: CreateScreenCallbacks): void {
 
   // Char counter
   secretInput.addEventListener("input", () => {
+    secretInput.setCustomValidity("");
     const len = secretInput.value.length;
     charCount.textContent = `${len.toLocaleString("pt-BR")} ${t("charsCounter")}`;
   });
@@ -303,10 +304,16 @@ function wireCreateEvents(callbacks: CreateScreenCallbacks): void {
     e.preventDefault();
     const secret = secretInput.value;
     if (!secret.trim()) { secretInput.focus(); return; }
+    if (new TextEncoder().encode(secret).byteLength > 65536) {
+      secretInput.setCustomValidity("A mensagem deve ter no máximo 64 KB em UTF-8.");
+      secretInput.reportValidity();
+      return;
+    }
+    if (createBtn.disabled) return;
 
     createBtn.classList.add("is-loading");
     createBtn.disabled = true;
-    createBtn.querySelector(".btn-spinner")!.hidden = false;
+    createBtn.querySelector<HTMLElement>(".btn-spinner")!.hidden = false;
 
     const protection = protectionValue.value as ProtectionMode;
     if (protection === "password" && !passwordInput.value.trim()) {
@@ -323,7 +330,7 @@ function wireCreateEvents(callbacks: CreateScreenCallbacks): void {
 
     createBtn.classList.remove("is-loading");
     createBtn.disabled = false;
-    createBtn.querySelector(".btn-spinner")!.hidden = true;
+    createBtn.querySelector<HTMLElement>(".btn-spinner")!.hidden = true;
   });
 }
 
@@ -515,16 +522,16 @@ export function renderRevealScreen(
 }
 
 function wireRevealButton(callbacks: RevealScreenCallbacks): void {
-  const btn = document.getElementById("revealBtn");
+  const btn = document.getElementById("revealBtn") as HTMLButtonElement | null;
   if (!btn) return;
   btn.addEventListener("click", async () => {
     btn.classList.add("is-loading");
     btn.disabled = true;
-    btn.querySelector(".btn-spinner")!.hidden = false;
+    btn.querySelector<HTMLElement>(".btn-spinner")!.hidden = false;
     await callbacks.onSubmit();
     btn.classList.remove("is-loading");
     btn.disabled = false;
-    btn.querySelector(".btn-spinner")!.hidden = true;
+    btn.querySelector<HTMLElement>(".btn-spinner")!.hidden = true;
   });
 
   document.getElementById("cancelRevealBtn")?.addEventListener("click", () => {
@@ -535,7 +542,7 @@ function wireRevealButton(callbacks: RevealScreenCallbacks): void {
 export function renderKeyPrompt(onSubmit: (keyInput: string) => void, oneTime: boolean, errorMessage?: string): void {
   const keyGroup = document.getElementById("revealKeyGroup");
   if (!keyGroup) return;
-  const btn = document.getElementById("revealBtn");
+  const btn = document.getElementById("revealBtn") as HTMLButtonElement | null;
   if (btn) btn.hidden = true;
 
   keyGroup.hidden = false;
@@ -563,12 +570,12 @@ export function renderKeyPrompt(onSubmit: (keyInput: string) => void, oneTime: b
     const retryBtn = document.getElementById("retryRevealBtn") as HTMLButtonElement;
     retryBtn.classList.add("is-loading");
     retryBtn.disabled = true;
-    retryBtn.querySelector(".btn-spinner")!.hidden = false;
+    retryBtn.querySelector<HTMLElement>(".btn-spinner")!.hidden = false;
     const keyInput = (document.getElementById("revealKeyInput") as HTMLInputElement).value;
     await onSubmit(keyInput);
     retryBtn.classList.remove("is-loading");
     retryBtn.disabled = false;
-    retryBtn.querySelector(".btn-spinner")!.hidden = true;
+    retryBtn.querySelector<HTMLElement>(".btn-spinner")!.hidden = true;
   });
 
   const keyInput = document.getElementById("revealKeyInput") as HTMLInputElement;
@@ -595,7 +602,7 @@ export function showRevealKeyError(message: string): void {
     keyInput.select();
   }
   // Troca o botão para vermelho + "Tentar novamente".
-  const btn = document.getElementById("revealBtn");
+  const btn = document.getElementById("revealBtn") as HTMLButtonElement | null;
   if (btn) {
     btn.className = "btn btn-destructive btn-full";
     const textEl = btn.querySelector(".btn-text");
@@ -603,7 +610,7 @@ export function showRevealKeyError(message: string): void {
     // Garante que o botão está habilitado para retry.
     btn.classList.remove("is-loading");
     btn.disabled = false;
-    const spinner = btn.querySelector(".btn-spinner");
+    const spinner = btn.querySelector<HTMLElement>(".btn-spinner");
     if (spinner) (spinner as HTMLElement).hidden = true;
   }
 }
@@ -638,12 +645,12 @@ export function renderPasswordPrompt(onSubmit: (password: string) => void, oneTi
     const retryBtn = document.getElementById("retryRevealBtn") as HTMLButtonElement;
     retryBtn.classList.add("is-loading");
     retryBtn.disabled = true;
-    retryBtn.querySelector(".btn-spinner")!.hidden = false;
+    retryBtn.querySelector<HTMLElement>(".btn-spinner")!.hidden = false;
     const password = (document.getElementById("revealPwdInput") as HTMLInputElement).value;
     await onSubmit(password);
     retryBtn.classList.remove("is-loading");
     retryBtn.disabled = false;
-    retryBtn.querySelector(".btn-spinner")!.hidden = true;
+    retryBtn.querySelector<HTMLElement>(".btn-spinner")!.hidden = true;
   });
 
   const revealBtn = document.getElementById("revealBtn");
@@ -828,12 +835,8 @@ export function clearRevealSensitiveInputs(): void {
 }
 
 function escapeHtml(str: string): string {
-  // Seguro para conteudo de elemento. Nao usar para montar atributos dinamicos.
+  // Também protege valores usados em atributos delimitados por aspas.
   const div = document.createElement("div");
   div.textContent = str;
-  return div.innerHTML;
-}
-
-function getBaseUrl(): string {
-  return `${window.location.origin}${window.location.pathname}`.replace(/\/$/, "");
+  return div.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }

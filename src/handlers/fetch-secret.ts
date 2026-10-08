@@ -117,7 +117,7 @@ async function fetchOneTimeFallback(
        AND one_time = 1`
   ).bind(now, consumeToken, idHash, now).run();
 
-  if (updateResult.meta.changed !== 1) return null;
+  if (updateResult.meta.changes !== 1) return null;
 
   const row = await env.DB.prepare(
     `SELECT encrypted_payload FROM secrets
@@ -127,8 +127,8 @@ async function fetchOneTimeFallback(
   if (!row) return null;
 
   await env.DB.prepare(
-    `DELETE FROM secrets WHERE id_hash = ?1`
-  ).bind(idHash).run();
+    `DELETE FROM secrets WHERE id_hash = ?1 AND consume_token = ?2`
+  ).bind(idHash, consumeToken).run();
 
   return jsonPayload(row.encrypted_payload);
 }

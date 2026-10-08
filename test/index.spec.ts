@@ -14,32 +14,8 @@
  */
 
 import { env, createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import worker from "../src/index";
-
-// ── D1 Migration Setup ──────────────────────────────────────────
-beforeAll(async () => {
-  const migrations = [
-    `CREATE TABLE IF NOT EXISTS secrets (
-      id_hash          TEXT PRIMARY KEY,
-      encrypted_payload TEXT NOT NULL,
-      expires_at       INTEGER NOT NULL,
-      created_at       INTEGER NOT NULL,
-      consumed_at      INTEGER,
-      consume_token    TEXT
-    )`,
-    `CREATE INDEX IF NOT EXISTS idx_secrets_expires_at ON secrets (expires_at)`,
-    `ALTER TABLE secrets ADD COLUMN one_time INTEGER NOT NULL DEFAULT 1`,
-  ];
-
-  for (const sql of migrations) {
-    try {
-      await (env as any).DB.prepare(sql).run();
-    } catch {
-      // Tabela, indice ou coluna ja existe no D1 isolado — ignorar.
-    }
-  }
-});
 
 // Helper: executa uma requisição contra o Worker
 async function fetchWorker(
@@ -103,7 +79,7 @@ describe("LockBrief Worker", () => {
       const html = await res.text();
       expect(html).toContain('<link rel="manifest" href="/manifest.webmanifest">');
       expect(html).toContain('<meta name="theme-color" content="#0B1115">');
-      expect(html).toContain('<link rel="apple-touch-icon" href="/assets/pwa-icon-192.png">');
+      expect(html).toContain('<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">');
     });
 
     it("renderiza ano atual no rodape", async () => {

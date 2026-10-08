@@ -12,6 +12,8 @@ Use este documento quando o pedido for:
 - atualizar um fork ou repositorio operacional privado
 - sincronizar uma instalacao local com o projeto oficial
 
+O upstream oficial não opera produção nem banco remoto. Este runbook aplica-se a instalações independentes do operador.
+
 ## Fonte oficial
 
 O upstream oficial do LockBrief e:
@@ -40,7 +42,7 @@ Use `origin` para push somente depois de confirmar que ele e o destino operacion
 A atualizacao de codigo nao deve alterar automaticamente:
 
 - `wrangler.local.toml`
-- `.dev.vars`
+- `.dev.vars*`
 - `.env*`
 - `database_id` real
 - binding D1 `DB`
@@ -213,6 +215,12 @@ Essa branch e apenas rollback local. Ela nao e uma branch de trabalho para valid
 
 Use um sufixo unico se a branch ja existir.
 
+A branch guarda somente conteúdo commitado; ela não protege arquivos ignorados, configurações privadas ou alterações ainda sem commit. Antes do overlay, faça backup local privado fora da árvore Git dos arquivos protegidos, com acesso restrito, e registre hashes para comparação sem expor conteúdo. Não inclua esses backups em commits ou pushes.
+
+Revise personalizações antes de copiar: quando houver uma versão-base conhecida, compare a instalação com essa versão para identificar alterações do operador. Sem base confiável, diferenças locais em fonte, migrations, branding/assets, scripts, documentos de privacidade/licença ou configuração são potenciais personalizações. Exclua explicitamente os caminhos personalizados do overlay e revise conflitos com a nova versão. Se a compatibilidade não puder ser inferida, entregue handoff; árvore Git limpa não prova ausência de personalização.
+
+Execute primeiro a mesma chamada `rsync` abaixo com `--dry-run --itemize-changes`. Revise os caminhos previstos e adicione as exclusões das personalizações protegidas. Só então execute a cópia.
+
 ```bash
 tmp_dir=$(mktemp -d /tmp/lockbrief-upstream.XXXXXX)
 git worktree add --detach "$tmp_dir" upstream/main
@@ -221,9 +229,10 @@ rsync -a \
   --exclude='.git/' \
   --exclude='wrangler.toml' \
   --exclude='wrangler.local.toml' \
-  --exclude='.dev.vars' \
-  --exclude='.env' \
-  --exclude='.env.*' \
+  --exclude='wrangler.*.local.toml' \
+  --exclude='.dev.vars*' \
+  --exclude='.env*' \
+  --exclude='node_modules/' \
   --exclude='.wrangler/' \
   --exclude='dist/' \
   "$tmp_dir"/ ./
@@ -262,8 +271,10 @@ Aplique do upstream apenas mudancas entendidas e seguras, como ajuste de `compat
 
 9. Valide localmente:
 
+`dist/` é saída gerada. O build atual substitui esse diretório inteiro após concluir e remove arquivos obsoletos; preservá-lo no overlay não preserva edições manuais durante o build. Se a instalação tiver personalizações apenas em `dist/`, faça backup privado e reconcilie essas mudanças com as fontes antes de reconstruir. Não executar o build sobre conteúdo insubstituível sem resolver esse conflito. Assets adicionais em `src/client/assets/` continuam sendo publicados.
+
 ```bash
-npm install
+npm ci
 npm run dev-init
 npm run build
 npm run typecheck
@@ -363,15 +374,16 @@ Para atualizar:
 
 Nao use force push para transformar `main` local em copia direta do upstream. O repositorio gerado e operacional; a atualizacao deve trazer codigo e docs sem apagar a configuracao provisionada.
 
-## Compatibilidade da v1.1.0
+## Compatibilidade desta atualização do upstream
 
-Para instancias ja em LockBrief v1.1.0:
-
-- nao ha migration D1 nova
-- nao ha novo binding
-- nao ha novo secret
-- nao ha nova variavel de ambiente obrigatoria
-- a atualizacao de codigo nao exige alterar tabela, cron, TTL ou limites
+- Não há migration D1 nova nem alteração de tabela, TTL ou formato de link.
+- Envelopes v1 e v2 continuam legíveis; parâmetros criptográficos existentes não mudam.
+- Não há novo binding, secret ou variável de runtime obrigatório nesta auditoria.
+- A migração anterior de 1.1.x para 1.2.0 introduziu bindings opcionais de rate limit e envelope v2. Instâncias antigas preservam o fallback em memória sem esses bindings; reconciliar os três bindings é um passo manual de proteção operacional, não uma troca automática de configuração.
+- Worker e assets devem ser preparados juntos. O build agora gera a versão do cache PWA a partir do conteúdo público; sessões abertas antes da atualização ainda exigem recarga. Não recarregar uma aba que já consumiu uma nota de leitura única enquanto a pessoa ainda precisa do envelope em memória.
+- Atualizar também `.npmrc`, scripts e lockfile. Usar `npm ci` com dependências opcionais e scripts de instalação desativados. Node 22 e 24 são alvos de CI; revisar overrides antigos de runtime no dashboard manualmente.
+- Migrations distribuídas `0001`/`0002` permanecem intactas. Uma base com ledger completo não recebe DDL nesta atualização; schema criado manualmente sem ledger precisa de reconciliação manual antes de executar o runner.
+- Rollback de código/cliente para 1.1.x não garante leitura de novos envelopes v2 com senha. Não apagar dados nem reinterpretar envelopes para permitir downgrade.
 
 Mesmo assim, sempre leia `CHANGELOG.md` e `RELEASE_NOTES.md` da versao que sera aplicada antes de publicar.
 
@@ -410,3 +422,7 @@ A IA deve parar e entregar instrucoes manuais quando:
 - [ ] Worker e Static Assets foram preparados a partir do mesmo checkout e a atualização do cliente/PWA foi validada quando houve mudança de envelope.
 - [ ] Publicacao remota foi feita apenas pelo metodo confirmado pelo operador.
 - [ ] O resumo final explicou se ha commit pendente, se houve push/deploy e qual e o proximo passo.
+
+## Consumo opcional de releases pela demo
+
+A arquitetura e bootstrap da demo privada estão em [SINCRONIZACAO-DEMO.md](SINCRONIZACAO-DEMO.md). O overlay automatizado é por delta entre releases estáveis imutáveis; protege Wrangler inteiro, personalizações declaradas e bloqueia conflitos/schema. O procedimento manual deste runbook continua disponível para qualquer instalação. v1.2.1 não adiciona migrations/bindings em relação a 1.2.0; exige reconstrução conjunta e revisão das versões Node/npm do painel.

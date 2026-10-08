@@ -10,34 +10,49 @@ import { getLang, t } from "./i18n";
 // ── API Helpers ─────────────────────────────────────────────────
 const API = {
   async store(idHash: string, payload: string, ttl: number, oneTime: boolean): Promise<boolean> {
-    const res = await fetch("/api/store", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idHash, payload, ttl, oneTime }),
-    });
-    const data = await res.json();
-    return data.ok === true;
+    try {
+      const res = await fetch("/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash, payload, ttl, oneTime }),
+      });
+      const data = await res.json();
+      return res.ok && data.ok === true;
+    } catch {
+      return false;
+    }
   },
 
   async fetchPayload(idHash: string): Promise<string | null> {
-    const res = await fetch("/api/fetch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idHash }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.payload || null;
+    try {
+      const res = await fetch("/api/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return typeof data.payload === "string" ? data.payload : null;
+    } catch {
+      return null;
+    }
   },
 
   async getInfo(idHash: string): Promise<{ oneTime: boolean; expiresAt: number; requiresPassword: boolean } | null> {
-    const res = await fetch("/api/info", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idHash }),
-    });
-    if (!res.ok) return null;
-    return res.json();
+    try {
+      const res = await fetch("/api/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (typeof data.oneTime !== "boolean" || typeof data.requiresPassword !== "boolean"
+        || !Number.isSafeInteger(data.expiresAt)) return null;
+      return data;
+    } catch {
+      return null;
+    }
   },
 };
 
@@ -61,7 +76,7 @@ function registerServiceWorker(): void {
 
 // ── Reveal state — envelope + key stored in memory after first fetch ──
 let storedEnvelope: Envelope | null = null;
-let storedKeyBytes: Uint8Array | null = null;
+let storedKeyBytes: Uint8Array<ArrayBuffer> | null = null;
 let secretOneTime = true;
 let secretExpiresAt = 0;
 
@@ -162,6 +177,10 @@ async function handleCreate(
       },
     });
     showScreen("created");
+  } catch {
+    clearCreateSensitiveInputs();
+    renderUnavailableScreen();
+    showScreen("unavailable");
   } finally {
     key.fill(0);
   }
@@ -213,7 +232,7 @@ async function handleReveal(
     renderKeyPrompt((key) => handleKeyAttempt(key), secretOneTime);
     return;
   }
-  let keyBytes: Uint8Array;
+  let keyBytes: Uint8Array<ArrayBuffer>;
   try {
     keyBytes = base64urlDecode(keyStr);
   } catch {
@@ -230,7 +249,7 @@ async function handleReveal(
 }
 
 // ── Armazena envelope + chave para retry ─────────────────────
-function storeForRetry(envelope: Envelope, keyBytes: Uint8Array): void {
+function storeForRetry(envelope: Envelope, keyBytes: Uint8Array<ArrayBuffer>): void {
   storedEnvelope = envelope;
   storedKeyBytes = keyBytes;
 }
@@ -258,7 +277,7 @@ async function tryDecryptWithStoredData(): Promise<void> {
 async function handleKeyAttempt(keyInput: string): Promise<void> {
   if (!keyInput || !hasStoredData()) return;
 
-  let newKeyBytes: Uint8Array;
+  let newKeyBytes: Uint8Array<ArrayBuffer>;
   try {
     newKeyBytes = base64urlDecode(keyInput);
   } catch {
@@ -306,7 +325,15 @@ function showRevealedSecret(secret: string): void {
 }
 
 // ── Boot ────────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", main);
+document.addEventListener("DOMContentLoaded", () => {
+  void main().catch(() => {
+    clearStoredData();
+    clearCreateSensitiveInputs();
+    clearRevealSensitiveInputs();
+    renderUnavailableScreen();
+    showScreen("unavailable");
+  });
+});
 
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !window.location.hash) {

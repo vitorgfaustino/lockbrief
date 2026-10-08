@@ -1,0 +1,44 @@
+# Template opcional: instalar na main privada antes de usar workflow_dispatch.
+name: Validar atualização privada
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: SHA exato do candidato de sincronização
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  validate:
+    if: github.repository == 'vitorgfaustino/lockbrief-demo'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node: '22'
+            npm: '10.9.2'
+          - node: '24'
+            npm: '11.16.0'
+    steps:
+      # Controlador da main revisada, candidato no SHA informado.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: main
+          path: controller
+          persist-credentials: false
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ inputs.expected_sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm install --global npm@${{ matrix.npm }} --ignore-scripts
+      - run: node controller/tools/upstream-sync/cli.mjs ci candidate
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}

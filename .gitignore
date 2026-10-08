@@ -10,6 +10,7 @@ CLAUDE.md
 .env.*
 !.env.example
 .dev.vars
+.dev.vars.*
 
 # Dev database
 .dev-env/
@@ -42,3 +43,6 @@ rollback/
 # Copilot / AI artifacts
 .copilot/
 design-system/
+
+# Build temporário local
+.lockbrief-build-*/

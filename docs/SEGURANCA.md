@@ -57,7 +57,7 @@ Novas criações usam envelope v2 e gravam os parâmetros aceitos em `kdfParams`
 
 - Envelope v1 permanece somente para leitura, com 210.000 iterações e `lockbrief:v1:kdf` implícitos.
 - Envelope v2 é usado para novas criações e exige parâmetros explícitos na allowlist.
-- O Worker rejeita versões, iterações e domínios HKDF desconhecidos antes de persistir.
+- O Worker rejeita versões, iterações e domínios HKDF desconhecidos antes de persistir. O cliente aplica a mesma validação antes de derivar a chave de um envelope recebido.
 - A evolução futura deve criar nova versão/allowlist; não deve reinterpretar um envelope já emitido.
 - O fragmento de URL `#v1` tem versionamento próprio e não muda com o envelope v2.
 
@@ -68,7 +68,7 @@ idHash = base64url(SHA-256(rawId do link))
 → Navegador: deriva K_final e descriptografa
 ```
 
-O caminho principal remove e retorna o envelope criptografado em uma única instrução D1. O fallback para runtimes sem `DELETE ... RETURNING` usa `UPDATE` + `consume_token` + `SELECT` + `DELETE`; nesse fallback, uma interrupção extrema entre as etapas pode deixar uma sobra criptografada marcada como consumida até o próximo cleanup.
+O fallback verifica `meta.changes` e condiciona o DELETE ao seu próprio `consume_token`; metadados também excluem registros já consumidos. O caminho principal remove e retorna o envelope criptografado em uma única instrução D1. O fallback para runtimes sem `DELETE ... RETURNING` usa `UPDATE` + `consume_token` + `SELECT` + `DELETE`; nesse fallback, uma interrupção extrema entre as etapas pode deixar uma sobra criptografada marcada como consumida até o próximo cleanup.
 
 ### Leitura de segredo (multi-leitura — one_time = 0)
 ```
@@ -122,7 +122,7 @@ Limites conhecidos:
 ## Segurança da cadeia de fornecimento
 
 - `package-lock.json` é versionado e a CI instala dependências com `npm ci`.
-- Scripts de instalação de dependências usam allowlist versionada e modo estrito do npm; versões novas de `esbuild` e `workerd` exigem revisão antes da aprovação, e o script opcional de `fsevents` é negado.
+- `.npmrc` bloqueia todos os scripts de instalação com `ignore-scripts=true`, compatível com npm 10/11. Dependências diretas estão fixadas; binários nativos vêm dos pacotes opcionais da plataforma. Não usar overrides de ambiente ou flags para reativar scripts.
 - A CI falha quando `npm audit --audit-level=high` encontra vulnerabilidade alta ou crítica.
 - GitHub Actions são fixadas por SHA imutável e executam com permissões explícitas mínimas.
 - O checkout da CI não mantém credenciais Git após obter o código.
@@ -143,7 +143,7 @@ Regras de segurança do PWA:
 - HTML e APIs continuam com `Cache-Control: no-store`.
 - A CSP permite `worker-src 'self'` apenas para registrar `/sw.js` no mesmo origin.
 
-Risco residual: se um navegador mantiver assets antigos em cache, uma versão anterior do cliente pode continuar ativa por curto período. O service worker usa estratégia network-first para assets, limpa caches antigos no `activate` e não cacheia respostas sensíveis.
+Risco residual: se um navegador mantiver assets antigos em cache, uma versão anterior do cliente pode continuar ativa por curto período. O service worker usa estratégia network-first para assets, versiona o cache pelo conteúdo no build, limpa caches antigos no `activate` e não cacheia respostas sensíveis. O fallback offline não busca em caches de outras versões. Abas já abertas não são recarregadas automaticamente, para preservar envelopes de leitura única em memória.
 
 ## Limites do modelo
 
@@ -170,9 +170,9 @@ Risco residual: se um navegador mantiver assets antigos em cache, uma versão an
 
 ## Política de erro genérico
 
-Todas as falhas públicas de revelação retornam a mesma mensagem:
+A tela terminal de indisponibilidade retorna a mesma mensagem genérica; erros locais de chave/senha permitem retry e usam mensagens próprias sem consultar novamente o servidor:
 
-> "Este segredo não está disponível. Ele pode ter expirado, já ter sido revelado ou o link pode estar incorreto."
+> "Não foi possível abrir este segredo. Para proteger a privacidade, o LockBrief não informa a causa exata."
 
 Nunca é revelado se o segredo:
 - Nunca existiu
@@ -217,3 +217,13 @@ O LockBrief opera no navegador — o limite de confiança do sistema. Extensões
 - Malware com acesso ao processo do navegador.
 
 Estes riscos são inerentes ao modelo de computação no navegador e afetam qualquer aplicação web de segurança, não apenas o LockBrief. Para máxima segurança, recomende que o destinatário abra o link em um perfil de navegador limpo, sem extensões, ou em uma janela anônima/privada.
+
+## Auditoria do upstream
+
+O upstream não possui produção nem recursos remotos. Os gates de CI verificam instalação, advisories, tipos do Worker/cliente, migrations locais, testes, template público e empacotamento dry-run; não publicam. A auditoria de dependências é temporal, não prova ausência de vulnerabilidade futura. O override restrito de sharp no Miniflare deve ser revisado nas próximas atualizações do SDK.
+
+Valores interpolados na interface escapam também aspas em atributos; plaintext revelado continua usando `textContent`. Falha de rede não provoca retry automático do consumo. A política criptográfica, os envelopes legados e o formato de link permanecem inalterados.
+
+## Segurança da sincronização opcional
+
+O controlador privado consome release estável por tag/SHA, compara delta e bloqueia tag movida, histórico divergente, personalização desconhecida, schema ou mudança do template. Protege Wrangler operacional e não executa migrations remotas. Token GitHub de escrita fica restrito ao publisher; validação usa HOME isolado e template público em cópia descartável. PR criada exige CI no mesmo SHA e aprovação humana; sem proteção de branch disponível, esse checkpoint é responsabilidade do operador. [Runbook e riscos](SINCRONIZACAO-DEMO.md).
