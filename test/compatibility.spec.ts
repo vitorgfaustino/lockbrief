@@ -26,6 +26,44 @@ function withoutReturning(failRead = false): Env["DB"] {
   });
 }
 
+function failAfterReturning(): Env["DB"] {
+  return new Proxy(env.DB, {
+    get(target, property) {
+      if (property !== "prepare") {
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      }
+      return (sql: string) => {
+        const statement = target.prepare(sql);
+        if (!sql.includes("RETURNING")) return statement;
+        return new Proxy(statement, {
+          get(st, stProp) {
+            if (stProp !== "bind") {
+              const value = Reflect.get(st, stProp, st);
+              return typeof value === "function" ? value.bind(st) : value;
+            }
+            return (...args: unknown[]) => {
+              const bound = st.bind(...args);
+              return new Proxy(bound, {
+                get(b, bProp) {
+                  if (bProp === "first") {
+                    return async () => {
+                      await b.first();
+                      throw new Error("response lost after commit");
+                    };
+                  }
+                  const value = Reflect.get(b, bProp, b);
+                  return typeof value === "function" ? value.bind(b) : value;
+                },
+              });
+            };
+          },
+        });
+      };
+    },
+  });
+}
+
 async function seed(oneTime = 1, consumedAt: number | null = null, expiresAt = Math.floor(Date.now() / 1000) + 3600) {
   const idHash = base64urlEncode(randomBytes(32));
   const key = randomBytes(32);
@@ -78,6 +116,15 @@ describe("compatibilidade D1 e consumo", () => {
     expect(responses.map(r => r.status).sort()).toEqual([200, 404, 404, 404, 404, 404]);
     const data = await responses.find(r => r.status === 200)!.json() as { payload: string };
     await expect(openEnvelope(JSON.parse(data.payload), secret.key)).resolves.toBe("  conteúdo de teste sintético\n");
+    secret.key.fill(0);
+  });
+
+  it("erro ambiguo depois do DELETE...RETURNING nao entrega de novo", async () => {
+    const secret = await seed();
+    const response = await request("fetch", secret.idHash, failAfterReturning());
+    expect(response.status).toBe(404);
+    expect(await env.DB.prepare("SELECT id_hash FROM secrets WHERE id_hash = ?").bind(secret.idHash).first()).toBeNull();
+    expect((await request("fetch", secret.idHash)).status).toBe(404);
     secret.key.fill(0);
   });
 

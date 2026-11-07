@@ -78,7 +78,8 @@ describe("LockBrief Worker", () => {
       const res = await fetchWorker("/");
       const html = await res.text();
       expect(html).toContain('<link rel="manifest" href="/manifest.webmanifest">');
-      expect(html).toContain('<meta name="theme-color" content="#0B1115">');
+      expect(html).toContain('<meta name="theme-color" content="#030712">');
+      expect(html).toContain('<meta name="mobile-web-app-capable" content="yes">');
       expect(html).toContain('<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">');
     });
 
@@ -182,6 +183,33 @@ describe("LockBrief Worker", () => {
       expect(res.status).toBe(400);
     });
 
+    it("rejeita idHash com tipo invalido (400)", async () => {
+      const res = await fetchWorker("/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash: 123, payload: validPayload, ttl: 3600 }),
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it("rejeita Content-Type inesperado (400)", async () => {
+      const res = await fetchWorker("/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ idHash: randomIdHash(), payload: validPayload, ttl: 3600 }),
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it("aceita Content-Type JSON com parametros", async () => {
+      const res = await fetchWorker("/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+        body: JSON.stringify({ idHash: randomIdHash(), payload: validPayload, ttl: 3600 }),
+      });
+      expect(res.status).toBe(201);
+    });
+
     it("rejeita idHash base64url nao canonico (400)", async () => {
       const res = await fetchWorker("/api/store", {
         method: "POST",
@@ -202,6 +230,66 @@ describe("LockBrief Worker", () => {
         body: JSON.stringify({ idHash: randomIdHash(), payload: validPayload, ttl: 999 }),
       });
       expect(res.status).toBe(400);
+    });
+
+    it("trata oneTime nao booleano como leitura unica", async () => {
+      const idHash = randomIdHash();
+      const store = await fetchWorker("/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash, payload: validPayload, ttl: 3600, oneTime: "false" }),
+      });
+      expect(store.status).toBe(201);
+
+      const info = await fetchWorker("/api/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash }),
+      });
+      expect((await info.json() as any).oneTime).toBe(true);
+
+      const first = await fetchWorker("/api/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash }),
+      });
+      const second = await fetchWorker("/api/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash }),
+      });
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(404);
+    });
+
+    it("aceita campo extra no envelope sem expor payload em /api/info", async () => {
+      const idHash = randomIdHash();
+      const payload = JSON.stringify({
+        v: 1,
+        alg: "AES-GCM-256",
+        iv: "abcdefghijklmnop",
+        ciphertext: "AAAAAAAAAAAAAAAAAAAAAA",
+        kdf: "none",
+        salt: null,
+        extra: "ignorado",
+      });
+
+      const store = await fetchWorker("/api/store", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash, payload, ttl: 3600 }),
+      });
+      expect(store.status).toBe(201);
+
+      const info = await fetchWorker("/api/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idHash }),
+      });
+      const data = await info.json() as any;
+      expect(info.status).toBe(200);
+      expect(data).not.toHaveProperty("payload");
+      expect(data).not.toHaveProperty("extra");
     });
 
     it("rejeita metodo GET (404)", async () => {
@@ -230,6 +318,7 @@ describe("LockBrief Worker", () => {
       ["dominio HKDF v2 desconhecido", { v: 2, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "PBKDF2-SHA256+HKDF-SHA256", salt: "AAAAAAAAAAAAAAAAAAAAAA", kdfParams: { iterations: 210000, hkdfInfo: "outro-dominio" } }],
       ["parametro KDF v2 extra", { v: 2, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "PBKDF2-SHA256+HKDF-SHA256", salt: "AAAAAAAAAAAAAAAAAAAAAA", kdfParams: { iterations: 210000, hkdfInfo: "lockbrief:v2:kdf", extra: true } }],
       ["KDF v2 ausente com parametros presentes", { v: 2, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "none", salt: null, kdfParams: { iterations: 210000, hkdfInfo: "lockbrief:v2:kdf" } }],
+      ["versao de envelope desconhecida", { v: 3, alg: "AES-GCM-256", iv: "abcdefghijklmnop", ciphertext: "AAAAAAAAAAAAAAAAAAAAAA", kdf: "none", salt: null }],
     ])("rejeita envelope com %s (400)", async (_label, envelope) => {
       const res = await fetchWorker("/api/store", {
         method: "POST",
@@ -522,6 +611,21 @@ describe("LockBrief Worker", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: "x".repeat(2049),
+      });
+      expect(res.status).toBe(400);
+    });
+
+    it("limita o stream mesmo sem Content-Length", async () => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("x".repeat(2049)));
+          controller.close();
+        },
+      });
+      const res = await fetchWorker("/api/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: stream,
       });
       expect(res.status).toBe(400);
     });
