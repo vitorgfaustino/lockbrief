@@ -15,10 +15,11 @@ function renderHtml(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privacidade — LockBrief</title>
-  <meta name="theme-color" content="#0B1115">
+  <title>Privacidade: LockBrief</title>
+  <meta name="theme-color" content="#030712">
   <meta name="application-name" content="LockBrief">
   <meta name="apple-mobile-web-app-title" content="LockBrief">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -31,8 +32,8 @@ function renderHtml(): string {
 
   <header class="app-header">
     <div class="header-inner">
-      <a href="/" class="logo" aria-label="LockBrief — Página inicial">
-        <img src="/assets/lockbrief.png" alt="LockBrief" class="logo-img" />
+      <a href="/" class="logo" aria-label="LockBrief, página inicial">
+        <img src="/assets/lockbrief-logo.png" alt="LockBrief" class="logo-img" width="128" height="36" />
       </a>
       <span class="tagline">Segredos efêmeros. Controle local.</span>
     </div>
@@ -43,23 +44,22 @@ function renderHtml(): string {
       <div class="content-column">
         <article class="card privacy-document">
           <header class="privacy-hero">
-            <span class="privacy-kicker">Privacidade</span>
             <h1 class="privacy-title">Política de Privacidade</h1>
-            <p class="privacy-lead">O LockBrief foi projetado com <strong>Privacy by Design</strong>. No cliente oficial e não modificado, o backend não recebe o segredo em texto claro nem a chave de descriptografia, e a aplicação não constrói perfis sobre quem usa o sistema.</p>
+            <p class="privacy-lead">O LockBrief foi projetado com <strong>Privacy by Design</strong>. No cliente oficial e não modificado, o backend não recebe o segredo em texto claro nem a senha automática (chave de 256 bits), e a aplicação não constrói perfis sobre quem usa o sistema.</p>
           </header>
 
           <section class="privacy-section" aria-labelledby="privacy-never-title">
             <div class="privacy-section-head">
               <span class="privacy-badge privacy-badge-success">Nunca acessa</span>
-              <h2 id="privacy-never-title" class="privacy-section-title">O que o servidor não vê</h2>
+              <h2 id="privacy-never-title" class="privacy-section-title">O que o servidor não vê ou não armazena</h2>
             </div>
-            <p class="privacy-body">A aplicação foi desenhada para operar com o mínimo de informação possível. Estes dados permanecem fora do alcance do backend durante todo o fluxo normal de uso.</p>
+            <p class="privacy-body">A aplicação foi desenhada para operar com o mínimo de informação possível. O texto em claro, a senha automática e a senha manual não chegam ao backend; IP e User-Agent podem ser processados pela infraestrutura, mas não são persistidos pela aplicação.</p>
             <ul class="privacy-list privacy-list-success">
               <li class="privacy-list-item">Conteúdo do segredo em texto claro.</li>
-              <li class="privacy-list-item">Chave de descriptografia usada para abrir o segredo.</li>
-              <li class="privacy-list-item">Senha adicional definida por quem compartilha.</li>
-              <li class="privacy-list-item">Endereço IP persistido pela própria aplicação.</li>
-              <li class="privacy-list-item">User-Agent persistido, cookies de rastreamento ou identificadores de dispositivo.</li>
+              <li class="privacy-list-item">Senha automática usada para abrir o segredo (chave de 256 bits).</li>
+              <li class="privacy-list-item">Senha manual definida por quem compartilha.</li>
+              <li class="privacy-list-item">Endereço IP não persistido pela própria aplicação.</li>
+              <li class="privacy-list-item">User-Agent não persistido, sem cookies de rastreamento ou identificadores de dispositivo.</li>
             </ul>
           </section>
 
@@ -81,8 +81,8 @@ function renderHtml(): string {
               <span class="privacy-badge privacy-badge-neutral">Criptografia local</span>
               <h2 id="privacy-crypto-title" class="privacy-section-title">Como a criptografia funciona</h2>
             </div>
-            <p class="privacy-body">Toda a criptografia e a descriptografia acontecem <strong>exclusivamente no navegador</strong>, com Web Crypto API. A chave fica apenas no fragmento da URL, em <code>#...</code>, que não é enviado ao servidor em requisições HTTP.</p>
-            <p class="privacy-body">Os algoritmos previstos para o fluxo são AES-GCM-256 para cifragem, PBKDF2-SHA256 com 210.000 iterações para derivação de senha adicional e HKDF-SHA256 para composição final de chave.</p>
+            <p class="privacy-body">Toda a criptografia e a descriptografia acontecem <strong>exclusivamente no navegador</strong>, com Web Crypto API. A senha automática fica apenas no fragmento da URL, em <code>#...</code>, que não é enviado ao servidor em requisições HTTP.</p>
+            <p class="privacy-body">Os algoritmos previstos para o fluxo são AES-GCM-256 para cifragem, PBKDF2-SHA256 com 210.000 iterações para derivação de senha manual e HKDF-SHA256 para composição final de chave.</p>
           </section>
 
           <section class="privacy-section" aria-labelledby="privacy-retention-title">
@@ -107,7 +107,7 @@ function renderHtml(): string {
             </div>
             <p class="privacy-body">A aplicação não cria contas, cookies de analytics ou identificadores persistentes. A Cloudflare ainda processa IP e metadados técnicos para entregar e proteger o serviço.</p>
             <p class="privacy-body">Os limites de abuso não persistem IP. Para conter repetição por recurso, o Worker envia ao contador da Cloudflare somente um novo hash SHA-256 derivado de rota e <code>idHash</code>, dentro de uma janela configurada de 60 segundos.</p>
-            <p class="privacy-body">A configuração padrão amostra 10% das invocações do Worker. Esses logs podem conter método, URL, resposta e metadados relacionados. O código não registra conteúdo, payload, <code>idHash</code>, chave ou senha; o fragmento <code>#...</code> não é enviado na requisição HTTP.</p>
+            <p class="privacy-body">A configuração padrão amostra 10% das invocações do Worker. Esses logs podem conter método, URL, resposta e metadados relacionados. O código não registra conteúdo, payload, <code>idHash</code>, senha automática ou senha manual; o fragmento <code>#...</code> não é enviado na requisição HTTP.</p>
           </section>
 
           <section class="privacy-section" aria-labelledby="privacy-lgpd-title">
@@ -133,16 +133,16 @@ function renderHtml(): string {
           <h2 class="info-title privacy-side-title">Resumo rápido</h2>
           <ul class="info-list privacy-side-list">
             <li class="info-item"><span class="info-bullet"></span><div><strong>Criptografia local</strong><p>O segredo é cifrado antes do envio. O backend recebe apenas um envelope criptografado.</p></div></li>
-            <li class="info-item"><span class="info-bullet"></span><div><strong>Chave fora da requisição</strong><p>A chave de descriptografia fica no fragmento do link e não é enviada ao servidor.</p></div></li>
+            <li class="info-item"><span class="info-bullet"></span><div><strong>Senha automática fora da requisição</strong><p>A senha automática fica no fragmento do link e não é enviada ao servidor.</p></div></li>
             <li class="info-item"><span class="info-bullet"></span><div><strong>Retenção mínima no banco ativo</strong><p>O registro deixa de ficar disponível após leitura, expiração ou limpeza automática; o D1 mantém Time Travel criptografado conforme o plano.</p></div></li>
-            <li class="info-item"><span class="info-bullet"></span><div><strong>Sem rastreamento</strong><p>Sem contas, cookies de analytics, fingerprinting ou perfil comportamental.</p></div></li>
+            <li class="info-item"><span class="info-bullet"></span><div><strong>Sem contas ou cookies</strong><p>Sem contas, cookies de analytics, fingerprinting ou perfil comportamental.</p></div></li>
           </ul>
           <div class="info-divider"></div>
           <div class="info-technical">
-            <h3 class="info-subtitle">Chave e senha</h3>
+            <h3 class="info-subtitle">Senhas</h3>
             <ul class="tech-list privacy-side-tech-list">
-              <li><strong>Chave</strong> — gerada automaticamente, necessária para descriptografar o conteúdo.</li>
-              <li><strong>Senha adicional</strong> — opcional, definida por quem compartilha, nunca enviada ao backend.</li>
+              <li><strong>Senha automática:</strong> gerada automaticamente, necessária para descriptografar o conteúdo.</li>
+              <li><strong>Senha manual:</strong> opcional, definida por quem compartilha, nunca enviada ao backend.</li>
             </ul>
           </div>
         </div>

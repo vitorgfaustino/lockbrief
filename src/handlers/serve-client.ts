@@ -18,11 +18,12 @@ function renderHtml(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LockBrief — Segredos efêmeros. Controle local.</title>
+  <title>LockBrief: Segredos efêmeros. Controle local.</title>
   <meta name="description" content="Compartilhe segredos efêmeros com criptografia no navegador e leitura única.">
-  <meta name="theme-color" content="#0B1115">
+  <meta name="theme-color" content="#030712">
   <meta name="application-name" content="LockBrief">
   <meta name="apple-mobile-web-app-title" content="LockBrief">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -35,8 +36,8 @@ function renderHtml(): string {
 
   <header class="app-header">
     <div class="header-inner">
-      <a href="/" class="logo" aria-label="LockBrief — Página inicial">
-        <img src="/assets/lockbrief.png" alt="LockBrief" class="logo-img" />
+      <a href="/" class="logo" aria-label="LockBrief, página inicial">
+        <img src="/assets/lockbrief-logo.png" alt="LockBrief" class="logo-img" width="128" height="36" />
       </a>
       <span class="tagline">Segredos efêmeros. Controle local.</span>
     </div>
