@@ -6,6 +6,52 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 
 ---
 
+## [1.2.2] — candidata em 2026-11-07 (não publicada)
+
+### Added
+- Badge “Recomendado” e layout de cópia revisado na tela Criado; card de link com largura total no desktop e botão de cópia reposicionado no mobile.
+- Nova direção visual em `DESIGN.md` e auditoria cruzada de UI em `docs/AUDITORIA-UI.md`.
+- Novos assets de marca: `lockbrief-logo.png` e `lockbrief-mark.png`, com aliases de compatibilidade para URLs antigas.
+- Testes dedicados para entropia da senha manual (`test/client-password.spec.ts`) e limite de body (`test/request-body.spec.ts`).
+- Documento de gate da versão em `docs/RELEASE-1.2.2.md`.
+
+### Changed
+- Terminologia da interface: “Chave automática” → “Senha automática”, “Senha humana” → “Senha manual” e “chave”/“link sem chave” → “senha automática”/“link sem senha” quando o artefato é de interface.
+- Acessibilidade: switch de leitura única com nome, label clicável e alvo de 44x44; radiogroups com roving tabindex e setas; foco movido para o `h1`; erros e status com `role="alert"`/`aria-live`; prompt de senha em `<form>` operável por Enter.
+- Contraste de `--text-faint` e placeholder elevado para 4.5:1; texto a 200% em 360px sem clipping; segmentados com quebra de linha; reduced motion cobre scroll suave.
+- Estado pós-fetch da revelação com título, aviso, requisito e cancelamento coerentes; `Escape` limitado às telas de revelação.
+- Erros operacionais separados do 404 genérico; rascunho preservado em falha de criação; retry seguro para 429; `/api/info` usa dados em memória depois de remover o fragmento da URL (429, rede ou timeout de 10 s).
+- Senha manual sem preenchimento automático silencioso; sugestão gerada com 7 palavras de uma lista de 72 + sufixo de 3 dígitos (≈53,2 bits); contador em bytes UTF-8; badge expirado neutro.
+- Copy de privacidade distingue “não vê” de “não armazena”; em dash, “nota” e kicker “Privacidade” removidos do texto visível.
+- Build minifica JS e CSS, versiona o cache PWA por conteúdo e mantém aliases dos assets antigos; vidro restrito ao header; sombra/glow reduzidos.
+- Dependências de desenvolvimento atualizadas para Wrangler 4.158.0, `@cloudflare/vitest-plugin` 1.6.0, Vitest 4.1.12 e `@cloudflare/workers-types` 5.20261107.1; override redundante de `sharp` removido.
+- Metadados PWA/HTML atualizados: tema `#030712`, títulos sem em dash, logo com dimensões explícitas, ícones 192/512 com propósito `any` e Apple Touch de 180px.
+
+### Fixed
+- Feedback de cópia agora confirma apenas após `navigator.clipboard.writeText` resolver; falha seleciona o campo e mostra instrução manual.
+- Texto vazio, excesso de bytes UTF-8 e senha manual vazia exibem erro inline, `aria-invalid` e foco no campo; o rascunho é preservado em falhas de criação.
+- Contador de mensagem passou a medir bytes UTF-8, alinhado ao limite do servidor; o `maxlength` permanece apenas como teto de code units.
+- Badge de expiração deixa de usar verde; contador e prompt de senha são interrompidos/retomados corretamente nas trocas de tela.
+- Mensagens de erro de criação/rede não afirmam mais “nada foi enviado” quando a resposta pode ter sido perdida após o commit.
+- Fragmentos inválidos deixam de permanecer na barra de endereço; o retry de metadados não recarrega a página.
+
+### Security
+- Fragmento removido com `history.replaceState` imediatamente após o parse, antes de `/api/info`; `rawId`/chave ficam apenas em memória durante o retry.
+- `/api/info` com 429, falha de rede ou timeout de 10 s leva a estado terminal com retry em memória, sem expor novamente a chave na URL.
+- `beforeunload` cobre o envelope de leitura única já buscado, inclusive na tela de revelação pós-fetch; cancelamento confirmado não gera prompt duplo.
+- Senha manual gerada elevada de ~37,3 para ~53,2 bits de entropia real, mantendo CSPRNG, PBKDF2 210k, HKDF, AES-GCM e envelopes v1/v2 inalterados.
+- Cobertura de regressão para atomicidade da leitura única: concorrência no caminho principal, fallback sem RETURNING, interrupção do fallback e erro ambíguo após `DELETE ... RETURNING`.
+- Cobertura de validação para versões desconhecidas, tipos inválidos, Content-Type, `Content-Length` não canônico, streams acima do cap, campos extras e `oneTime` não booleano.
+
+### Removed
+- `src/client/assets/lockbrief.png` removido da fonte; o build publica `lockbrief.png` como alias de `lockbrief-logo.png` para preservar URLs antigas.
+
+### Tests and documentation
+- Suíte ampliada para 69 testes em 6 arquivos; `test:tooling` 5/5 e `test:sync` 17/17.
+- Documentação sincronizada em `AGENTS.md`, `AI-START.md`, `README.md`, `RELEASE_NOTES.md`, `DESIGN.md`, `docs/COMPORTAMENTO.md`, `docs/FUNCIONAL.md`, `docs/SEGURANCA.md`, `docs/PRIVACIDADE.md`, `docs/IMPLANTACAO.md`, `docs/ATUALIZACAO.md`, `docs/SINCRONIZACAO-DEMO.md`, `docs/AUDITORIA-UI.md` e `docs/RELEASE-1.2.2.md`.
+
+Sem migration, alteração de API, schema, parâmetros criptográficos, envelopes, TTL ou licença.
+
 ## [1.2.1] — candidata em 2026-10-08 (não publicada)
 
 ### Correções e distribuição

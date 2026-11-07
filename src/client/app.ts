@@ -3,58 +3,98 @@
  * Coordena UI, criptografia e chamadas de API.
  */
 
-import { initUI, showScreen, renderCreateScreen, renderCreatedScreen, renderRevealScreen, renderKeyPrompt, renderPasswordPrompt, renderRevealedScreen, renderUnavailableScreen, flashCopyButton, clearCreateSensitiveInputs, clearRevealSensitiveInputs, ProtectionMode } from "./ui";
+import { initUI, showScreen, getCurrentScreen, showLoading, hideLoading, renderCreateScreen, renderCreatedScreen, renderRevealScreen, renderKeyPrompt, renderPasswordPrompt, renderRevealedScreen, renderUnavailableScreen, renderErrorScreen, announce, stopCountdownTimer, clearCreateSensitiveInputs, clearRevealSensitiveInputs, ProtectionMode } from "./ui";
 import { createEnvelope, openEnvelope, parseFragment, buildLink, base64urlDecode, base64urlEncode, FragmentParts, Envelope } from "./crypto";
 import { getLang, t } from "./i18n";
 
 // ── API Helpers ─────────────────────────────────────────────────
+type ApiFailure = { ok: false; status: number | null };
+type InfoData = { oneTime: boolean; expiresAt: number; requiresPassword: boolean };
+
 const API = {
-  async store(idHash: string, payload: string, ttl: number, oneTime: boolean): Promise<boolean> {
+  async store(
+    idHash: string,
+    payload: string,
+    ttl: number,
+    oneTime: boolean
+  ): Promise<{ ok: true } | ApiFailure> {
     try {
       const res = await fetch("/api/store", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idHash, payload, ttl, oneTime }),
       });
-      const data = await res.json();
-      return res.ok && data.ok === true;
+      const data = await res.json().catch(() => null);
+      if (res.ok && data && typeof data === "object" && (data as { ok?: unknown }).ok === true) {
+        return { ok: true };
+      }
+      return { ok: false, status: res.status };
     } catch {
-      return false;
+      return { ok: false, status: null };
     }
   },
 
-  async fetchPayload(idHash: string): Promise<string | null> {
+  async fetchPayload(idHash: string): Promise<{ ok: true; payload: string } | ApiFailure> {
     try {
       const res = await fetch("/api/fetch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idHash }),
       });
-      if (!res.ok) return null;
-      const data = await res.json();
-      return typeof data.payload === "string" ? data.payload : null;
+      if (!res.ok) return { ok: false, status: res.status };
+      const data = await res.json().catch(() => null);
+      if (data && typeof data === "object" && typeof (data as { payload?: unknown }).payload === "string") {
+        return { ok: true, payload: (data as { payload: string }).payload };
+      }
+      return { ok: false, status: res.status };
     } catch {
-      return null;
+      return { ok: false, status: null };
     }
   },
 
-  async getInfo(idHash: string): Promise<{ oneTime: boolean; expiresAt: number; requiresPassword: boolean } | null> {
+  async getInfo(idHash: string): Promise<{ ok: true; data: InfoData } | ApiFailure> {
+    const controller = new AbortController();
+    // Metadados são pequenos; um timeout evita ficar preso no loading
+    // depois que o fragmento já foi removido da URL.
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
     try {
       const res = await fetch("/api/info", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idHash }),
+        signal: controller.signal,
       });
-      if (!res.ok) return null;
-      const data = await res.json();
-      if (typeof data.oneTime !== "boolean" || typeof data.requiresPassword !== "boolean"
-        || !Number.isSafeInteger(data.expiresAt)) return null;
-      return data;
+      if (!res.ok) return { ok: false, status: res.status };
+      const data = await res.json().catch(() => null);
+      if (data && typeof data === "object"
+        && typeof (data as InfoData).oneTime === "boolean"
+        && typeof (data as InfoData).requiresPassword === "boolean"
+        && Number.isSafeInteger((data as InfoData).expiresAt)) {
+        return { ok: true, data: data as InfoData };
+      }
+      return { ok: false, status: res.status };
     } catch {
-      return null;
+      return { ok: false, status: null };
+    } finally {
+      window.clearTimeout(timeoutId);
     }
   },
 };
+
+function isRateLimit(status: number | null): boolean {
+  return status === 429;
+}
+
+function showRevealError(status: number | null, onRetry: () => void): void {
+  if (isRateLimit(status)) {
+    renderErrorScreen("rateLimit", { onRetry });
+  } else if (status === null) {
+    renderErrorScreen("network", { onRetry });
+  } else {
+    renderErrorScreen("info", { onRetry });
+  }
+  showScreen("error");
+}
 
 function registerServiceWorker(): void {
   if (!("serviceWorker" in navigator)) return;
@@ -99,36 +139,11 @@ async function main(): Promise<void> {
   const hash = window.location.hash;
   if (hash) {
     const parsed = parseFragment(hash);
+    // O fragmento pode conter a chave. Remove-o da barra assim que o formato é
+    // lido; o retry de /api/info usa apenas os dados em memória.
+    history.replaceState(null, "", window.location.pathname + window.location.search);
     if (parsed) {
-      history.replaceState(null, "", window.location.pathname + window.location.search);
-      showScreen("reveal");
-
-      // Consulta metadados (oneTime + expiração) sem consumir o segredo.
-      const rawIdBytes = base64urlDecode(parsed.rawId);
-      const digest = await crypto.subtle.digest("SHA-256", rawIdBytes);
-      const idHash = base64urlEncode(new Uint8Array(digest));
-      const info = await API.getInfo(idHash);
-
-      if (!info) {
-        renderUnavailableScreen();
-        showScreen("unavailable");
-        return;
-      }
-
-      secretOneTime = info.oneTime;
-      secretExpiresAt = info.expiresAt;
-
-      // Um segredo protegido por senha sempre usa o link completo gerado pelo app.
-      // Se a chave foi removida manualmente do fragmento, nao consumimos a nota.
-      if (info.requiresPassword && !parsed.key) {
-        renderUnavailableScreen();
-        showScreen("unavailable");
-        return;
-      }
-
-      renderRevealScreen(!parsed.key, info.requiresPassword, info.oneTime, info.expiresAt, {
-        onSubmit: () => handleReveal(parsed),
-      });
+      await beginReveal(parsed);
       return;
     }
   }
@@ -136,6 +151,55 @@ async function main(): Promise<void> {
   showScreen("create");
   renderCreateScreen({
     onSubmit: (data) => handleCreate(data.secret, data.ttl, data.password, data.oneTime, data.protection),
+  });
+}
+
+// ── Reveal metadata (does not consume the secret) ───────────────
+async function beginReveal(parsed: FragmentParts): Promise<void> {
+  showScreen("reveal");
+  showLoading();
+
+  try {
+    const rawIdBytes = base64urlDecode(parsed.rawId);
+    const digest = await crypto.subtle.digest("SHA-256", rawIdBytes);
+    const idHash = base64urlEncode(new Uint8Array(digest));
+    const infoResult = await API.getInfo(idHash);
+
+    if (!infoResult.ok) {
+      if (infoResult.status === 404) {
+        renderUnavailableScreen();
+        showScreen("unavailable");
+      } else {
+        showRevealError(infoResult.status, () => retryReveal(parsed));
+      }
+      return;
+    }
+
+    const info = infoResult.data;
+    secretOneTime = info.oneTime;
+    secretExpiresAt = info.expiresAt;
+
+    // Um segredo protegido por senha sempre usa o link completo gerado pelo app.
+    // Se a senha automática foi removida manualmente do fragmento, nao consumimos o segredo.
+    if (info.requiresPassword && !parsed.key) {
+      renderUnavailableScreen();
+      showScreen("unavailable");
+      return;
+    }
+
+    renderRevealScreen(!parsed.key, info.requiresPassword, info.oneTime, info.expiresAt, {
+      onSubmit: () => handleReveal(parsed),
+      onCancel: () => { allowLeave = true; },
+    });
+  } finally {
+    hideLoading();
+  }
+}
+
+function retryReveal(parsed: FragmentParts): void {
+  void beginReveal(parsed).catch(() => {
+    hideLoading();
+    showRevealError(null, () => retryReveal(parsed));
   });
 }
 
@@ -156,12 +220,18 @@ async function handleCreate(
     );
 
     const payload = JSON.stringify(envelope);
-    const success = await API.store(idHash, payload, ttl, oneTime);
+    const result = await API.store(idHash, payload, ttl, oneTime);
 
-    if (!success) {
-      clearCreateSensitiveInputs();
-      renderUnavailableScreen();
-      showScreen("unavailable");
+    if (!result.ok) {
+      // Preserva o rascunho: a tela de criação continua no DOM, apenas oculta.
+      if (isRateLimit(result.status)) {
+        renderErrorScreen("rateLimit", { onRetry: () => showScreen("create") });
+      } else if (result.status === null) {
+        renderErrorScreen("network", { onRetry: () => showScreen("create") });
+      } else {
+        renderErrorScreen("create", { onRetry: () => showScreen("create") });
+      }
+      showScreen("error");
       return;
     }
 
@@ -172,28 +242,33 @@ async function handleCreate(
 
     clearCreateSensitiveInputs();
     renderCreatedScreen(linkFull, linkshort, keyB64, password, { ttl, oneTime, protection }, {
-      onCopy: (text) => {
-        navigator.clipboard.writeText(text).catch(() => {});
+      onCopy: async (text) => {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch {
+          return false;
+        }
       },
     });
     showScreen("created");
+    announce(t("createdTitle"));
   } catch {
-    clearCreateSensitiveInputs();
-    renderUnavailableScreen();
-    showScreen("unavailable");
+    renderErrorScreen("create", { onRetry: () => showScreen("create") });
+    showScreen("error");
   } finally {
     key.fill(0);
   }
 }
 
 // ── Reveal Handler (step 1: fetch from server — consome o segredo) ──
-// Após este ponto, o envelope e a chave ficam em memória (storedEnvelope/storedKeyBytes).
-// Todas as retentativas de senha/chave usam esses dados locais.
+// Após este ponto, o envelope e a senha automática (chave) ficam em memória (storedEnvelope/storedKeyBytes).
+// Todas as retentativas de senha manual/automática usam esses dados locais.
 async function handleReveal(
   fragment: FragmentParts
 ): Promise<void> {
   // Se já temos dados armazenados de uma tentativa anterior (ex.: usuário
-  // digitou chave errada e está tentando de novo), usa os dados locais.
+  // digitou senha automática errada e está tentando de novo), usa os dados locais.
   if (hasStoredData()) {
     await tryDecryptWithStoredData();
     return;
@@ -204,28 +279,44 @@ async function handleReveal(
   const digest = await crypto.subtle.digest("SHA-256", rawIdBytes);
   const idHash = base64urlEncode(new Uint8Array(digest));
 
-  // IMPORTANTE: o fetch vem ANTES da validação da chave.
+  // IMPORTANTE: o fetch vem ANTES da validação da senha automática.
   // Para oneTime=true, o segredo é consumido no primeiro fetch, independentemente
-  // do formato ou valor da chave. Isso garante que fechar o navegador após
+  // do formato ou valor da senha automática. Isso garante que fechar o navegador após
   // qualquer tentativa invalida o link — o segredo já foi removido do servidor.
-  const payload = await API.fetchPayload(idHash);
+  const fetchResult = await API.fetchPayload(idHash);
 
-  if (!payload) {
-    renderUnavailableScreen();
-    showScreen("unavailable");
+  if (!fetchResult.ok) {
+    if (isRateLimit(fetchResult.status)) {
+      // 429 acontece antes do consumo; o retry é seguro e usa o fragmento em memória.
+      renderErrorScreen("rateLimit", {
+        onRetry: () => {
+          showScreen("reveal");
+          showLoading();
+          void handleReveal(fragment).finally(() => hideLoading());
+        },
+      });
+    } else if (fetchResult.status === 404) {
+      renderUnavailableScreen();
+      showScreen("unavailable");
+    } else {
+      // Em falha de transporte, a resposta pode ter sido perdida após o consumo.
+      // Não repetir automaticamente é uma decisão de segurança documentada.
+      renderErrorScreen("fetch");
+    }
+    showScreen("error");
     return;
   }
 
   let envelope: Envelope;
   try {
-    envelope = JSON.parse(payload) as Envelope;
+    envelope = JSON.parse(fetchResult.payload) as Envelope;
   } catch {
     renderUnavailableScreen();
     showScreen("unavailable");
     return;
   }
 
-  // Valida formato da chave (só para UX — o fetch já consumiu o segredo).
+  // Valida formato da senha automática (só para UX — o fetch já consumiu o segredo).
   const keyStr = fragment.key;
   if (!keyStr || keyStr.length !== 43) {
     storeForRetry(envelope, new Uint8Array(32)); // placeholder
@@ -248,7 +339,7 @@ async function handleReveal(
   await tryDecryptWithStoredData();
 }
 
-// ── Armazena envelope + chave para retry ─────────────────────
+// ── Armazena envelope + senha automática para retry ──────────
 function storeForRetry(envelope: Envelope, keyBytes: Uint8Array<ArrayBuffer>): void {
   storedEnvelope = envelope;
   storedKeyBytes = keyBytes;
@@ -273,7 +364,7 @@ async function tryDecryptWithStoredData(): Promise<void> {
   }
 }
 
-// ── Tentativa com chave digitada pelo usuário ──────────────────
+// ── Tentativa com senha automática digitada pelo usuário ─────
 async function handleKeyAttempt(keyInput: string): Promise<void> {
   if (!keyInput || !hasStoredData()) return;
 
@@ -314,19 +405,24 @@ async function handlePasswordAttempt(password: string): Promise<void> {
 function showRevealedSecret(secret: string): void {
   clearRevealSensitiveInputs();
   renderRevealedScreen(secret, secretOneTime, secretExpiresAt, {
-    onCopy: (text) => {
-      navigator.clipboard.writeText(text).catch(() => {});
-      const btn = document.getElementById("copySecretBtn");
-      if (btn) flashCopyButton(btn);
+    onCopy: async (text) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        return false;
+      }
     },
   });
   showScreen("revealed");
+  announce(t("revealedTitle"));
   clearStoredData();
 }
 
 // ── Boot ────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
   void main().catch(() => {
+    hideLoading();
     clearStoredData();
     clearCreateSensitiveInputs();
     clearRevealSensitiveInputs();
@@ -335,21 +431,49 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+let allowLeave = false;
+
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && !window.location.hash) {
-    window.location.href = "/";
+  if (e.key !== "Escape") return;
+  const screen = getCurrentScreen();
+  if (screen !== "reveal" && screen !== "revealed") return;
+
+  const postFetchOneTime = screen === "reveal"
+    && secretOneTime
+    && document.getElementById("revealTitle")?.textContent === t("revealPostFetchTitle");
+  if (postFetchOneTime) {
+    if (!window.confirm(t("leaveLostAccessConfirm"))) return;
+    allowLeave = true;
   }
+  window.location.href = "/";
 });
 
-// Alerta ao sair da tela de segredo revelado (apenas leitura única).
+// Alerta ao sair da tela Criado (única cópia de link/senha automática/senha manual) e do segredo revelado.
 window.addEventListener("beforeunload", (e) => {
-  if (secretOneTime && (storedEnvelope !== null || document.getElementById("revealedSecretText"))) {
+  if (allowLeave) return;
+  const createdVisible = getCurrentScreen() === "created";
+  const revealPostFetchOneTime = secretOneTime
+    && hasStoredData()
+    && getCurrentScreen() === "reveal";
+  const revealedOneTime = secretOneTime && document.getElementById("revealedSecretText") !== null;
+  if (createdVisible || revealPostFetchOneTime || revealedOneTime) {
     e.preventDefault();
     e.returnValue = "";
   }
 });
 
+window.addEventListener("click", (e) => {
+  const target = (e.target as HTMLElement).closest(".js-create-new");
+  if (!target) return;
+  if (!window.confirm(t("createdLeaveConfirm"))) {
+    e.preventDefault();
+    return;
+  }
+  allowLeave = true;
+});
+
 window.addEventListener("pagehide", () => {
+  stopCountdownTimer();
   clearStoredData();
   clearRevealSensitiveInputs();
 });

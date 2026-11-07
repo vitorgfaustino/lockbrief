@@ -8,6 +8,7 @@ import {
   derivePbkdf2,
   encryptAes,
   openEnvelope,
+  parseFragment,
   randomBytes,
 } from "../src/client/crypto";
 import type { Envelope } from "../src/client/crypto";
@@ -104,6 +105,27 @@ describe("envelopes criptograficos", () => {
       passwordKey.fill(0);
       combined.fill(0);
       finalKey.fill(0);
+    }
+  });
+
+  it("aceita somente fragmentos v1 com rawId e chave opcional canonicos", () => {
+    const rawId = "A".repeat(43);
+    const key = "B".repeat(43);
+
+    expect(parseFragment(`#v1.${rawId}`)).toEqual({ rawId, key: null });
+    expect(parseFragment(`#v1.${rawId}.${key}`)).toEqual({ rawId, key });
+
+    for (const invalid of [
+      "",
+      "#",
+      "#v2." + rawId,
+      `#v1.${"A".repeat(42)}`,
+      `#v1.${rawId}.`,
+      `#v1.${rawId}.${"B".repeat(42)}`,
+      `#v1.${rawId}.${key}x`,
+      `#v1.${"A".repeat(42)}+`,
+    ]) {
+      expect(parseFragment(invalid)).toBeNull();
     }
   });
 });

@@ -46,6 +46,8 @@ Este repositorio usa documentacao viva. Qualquer agente que altere codigo, plano
 
 - Produto e UX:
   atualizar `docs/COMPORTAMENTO.md`
+- Direcao visual, identidade, tipografia, cores, densidade, movimento ou acessibilidade visual:
+  atualizar `DESIGN.md` e `docs/COMPORTAMENTO.md`
 - API, banco, limites, estados e invariantes:
   atualizar `docs/FUNCIONAL.md`
 - Criptografia, headers, threat model, abuse controls e falhas seguras:
@@ -93,9 +95,55 @@ Este repositorio usa documentacao viva. Qualquer agente que altere codigo, plano
   Atualizar `docs/OPERACAO-IA.md` e `AI-START.md`.
 - A decisao altera a direcao do projeto?
   Atualizar README, `AI-START.md` e os documentos correspondentes em `docs/`.
+- A direcao visual ou a identidade mudou?
+  Atualizar `DESIGN.md` e `docs/COMPORTAMENTO.md`.
+- A versao sera preparada?
+  Atualizar `package.json`, `package-lock.json`, `CHANGELOG.md`, `RELEASE_NOTES.md`, `README.md` e `AI-START.md`; validar typecheck, testes, build, tooling e `npm audit`.
+
+## Preparacao de versao
+
+- A fonte de verdade da versao e `package.json`; `package-lock.json` deve refletir a mesma versao.
+- Atualizar `CHANGELOG.md`, `RELEASE_NOTES.md`, `README.md`, `AI-START.md` e, quando a regra operacional mudar, este `AGENTS.md`.
+- Distinguir sempre **candidata local** de **release publicada**. Nao anunciar tag, release ou deploy sem autorizacao e execucao reais.
+- Validar antes de entregar: `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:tooling`, `npm audit` e smoke local quando o runtime mudar.
+- Nao criar tag, release, commit, push ou deploy como parte de “preparar a versao” sem pedido explicito do mantenedor.
+
+## Arquitetura e organizacao
+
+- Worker: `src/index.ts` (entrada e cron), `src/router.ts`, `src/handlers/` (rotas e cleanup) e `src/lib/` (validacao, headers, erros, abuse controls).
+- D1: `migrations/0001_create_secrets.sql` e `migrations/0002_add_one_time.sql`; schema e ledger sao lidos nos testes locais.
+- Cliente: `src/client/app.ts` (fluxo), `crypto.ts` (Web Crypto), `ui.ts` (DOM), `i18n.ts` (textos), `styles.css`, `sw.js` e assets/PWA.
+- Tipos compartilhados: `src/lib/envelope-format.ts` e `src/lib/validation.ts`; o cliente e o Worker usam a mesma allowlist.
+- Testes: `test/` (Vitest + plugin Cloudflare, D1 local) e `test-tooling/` (Node test runner); build em `build-client.mjs`; distribuicao em `scripts/check-distribution.mjs`.
+- O upstream nao tem dependencias de runtime; o cliente e o Worker usam Web APIs e D1. Nao introduzir servico externo, analytics, cookie, fingerprint ou dependencia criptografica sem decisao explicita.
+
+## Criptografia e compatibilidade
+
+- AES-GCM-256, PBKDF2-SHA256, HKDF-SHA256, IV, salts e CSPRNG rodam no navegador. O Worker nao recebe plaintext, chave ou senha manual e nao executa PBKDF2/HKDF/AES-GCM.
+- O Worker calcula apenas SHA-256 efemero para a chave de rate limit por recurso; isso nao e armazenado como identificador de cliente.
+- PBKDF2 esta congelado em 210.000 iteracoes. Alterar o custo, o algoritmo, o IV, o dominio HKDF ou os parametros persistidos exige justificativa de seguranca, analise de desempenho, nova versao/allowlist de envelope e testes de retrocompatibilidade.
+- Envelopes v1/v2, links `#v1.<rawId>[.<key>]`, links curtos e leitura unica devem continuar funcionando. Nunca reinterpretar silenciosamente um envelope ja emitido.
+- Toda mudanca criptografica ou de envelope exige vetores fixos v1/v2 e testes de compatibilidade antes do commit.
+
+## Validacao local
+
+- Validar em copia isolada quando o worktree tiver alteracoes nao commitadas: `npm ci --ignore-scripts`.
+- Gates: `npm run typecheck`, `npm run build`, `npm test`, `npm run test:tooling`, `npm run test:sync`, `npm run check:distribution`, `npm audit --audit-level=high`, `git diff --check` e `wrangler deploy --dry-run` quando disponivel.
+- `npm run dev-init` deve ser executado duas vezes para confirmar migrations locais e repeticao pelo ledger.
+- Nao remover, enfraquecer ou ocultar teste para obter aprovacao. Falha de gate deve ser corrigida ou registrada como bloqueio.
+
+## Protecao da branch main
+
+- A `main` do upstream usa o ruleset `Protect main`: bloqueia delecao e force push, exige PR, exige os checks `quality (22, 10.9.2)` e `quality (24, 11.16.0)` e permite bypass apenas do mantenedor em PR.
+- Nao desativar, afrouxar ou contornar o ruleset sem autorizacao explicita. Nao fazer push direto, force push ou merge remoto para testar protecao.
+- Push, tag, GitHub Release, merge remoto, deploy Cloudflare e migration remota exigem autorizacao expressa e separada. Commits locais so devem ser criados quando solicitados.
+- Antes de release, confirmar CI verde no commit exato, ruleset ativo, versao em `package.json`/lockfile e ausencia de segredos no diff.
 
 ## Estado inicial reconhecido
 
+- Versao candidata atual: `1.2.2` em `package.json`; ultima release estavel documentada: `1.2.1`.
+- Dependencias de desenvolvimento: Wrangler 4.158.0, `@cloudflare/vitest-plugin` 1.6.0, Vitest 4.1.12 e `@cloudflare/workers-types` 5.20261107.1; npm 12.2.2 validado com Node 24.18.1; `npm audit` com 0 vulnerabilidades.
+- Direcao visual em `DESIGN.md`; auditoria de UI em `docs/AUDITORIA-UI.md`.
 - O sistema real esta implementado em `src/` (Worker + D1 + cliente TypeScript).
 - Typecheck verifica separadamente o Worker e o cliente com tipos DOM.
 - Build do cliente funciona via `npm run build` (alias de `npm run build:client`, esbuild → `dist/client.js`, `dist/styles.css`, assets e arquivos PWA).

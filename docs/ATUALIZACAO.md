@@ -425,4 +425,4 @@ A IA deve parar e entregar instrucoes manuais quando:
 
 ## Consumo opcional de releases pela demo
 
-A arquitetura e bootstrap da demo privada estão em [SINCRONIZACAO-DEMO.md](SINCRONIZACAO-DEMO.md). O overlay automatizado é por delta entre releases estáveis imutáveis; protege Wrangler inteiro, personalizações declaradas e bloqueia conflitos/schema. O procedimento manual deste runbook continua disponível para qualquer instalação. v1.2.1 não adiciona migrations/bindings em relação a 1.2.0; exige reconstrução conjunta e revisão das versões Node/npm do painel.
+A arquitetura e bootstrap da demo privada estão em [SINCRONIZACAO-DEMO.md](SINCRONIZACAO-DEMO.md). O overlay automatizado é por delta entre releases estáveis imutáveis; protege Wrangler inteiro, personalizações declaradas e bloqueia conflitos/schema. O procedimento manual deste runbook continua disponível para qualquer instalação. v1.2.2 não adiciona migrations/bindings em relação a 1.2.1; exige reconstrução conjunta e revisão das versões Node/npm do painel.
