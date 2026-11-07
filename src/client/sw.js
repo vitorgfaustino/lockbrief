@@ -6,7 +6,7 @@ const STATIC_PATHS = [
   "/manifest.webmanifest",
   "/assets/favicon.ico",
   "/assets/favicon-96x96.png",
-  "/assets/lockbrief.png",
+  "/assets/lockbrief-logo.png",
   "/assets/apple-touch-icon.png",
   "/assets/web-app-manifest-192x192.png",
   "/assets/web-app-manifest-512x512.png",

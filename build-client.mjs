@@ -5,10 +5,11 @@ import { copyFileSync, cpSync, existsSync, mkdtempSync, readFileSync, renameSync
 import { join } from "node:path";
 
 const assets = [
-  "lockbrief.png", "favicon.ico", "favicon-96x96.png", "apple-touch-icon.png",
+  "lockbrief-logo.png", "lockbrief-mark.png", "favicon.ico", "favicon-96x96.png", "apple-touch-icon.png",
   "web-app-manifest-192x192.png", "web-app-manifest-512x512.png",
 ];
 const aliases = {
+  "lockbrief.png": "lockbrief-logo.png",
   "favicon.png": "favicon-96x96.png",
   "pwa-icon.png": "web-app-manifest-512x512.png",
   "pwa-icon-192.png": "web-app-manifest-192x192.png",
@@ -23,10 +24,13 @@ try {
   await esbuild.build({
     entryPoints: ["src/client/app.ts"], bundle: true, format: "esm",
     target: "es2022", platform: "browser", outfile: join(stage, "client.js"),
-    minify: false, sourcemap: false,
+    minify: true, sourcemap: false,
     define: { "process.env.NODE_ENV": '"production"' },
   });
-  copyFileSync("src/client/styles.css", join(stage, "styles.css"));
+  await esbuild.build({
+    entryPoints: ["src/client/styles.css"], bundle: false,
+    minify: true, outfile: join(stage, "styles.css"),
+  });
   copyFileSync("src/client/manifest.webmanifest", join(stage, "manifest.webmanifest"));
   // Preserva também assets adicionais usados por instalações personalizadas.
   cpSync("src/client/assets", join(stage, "assets"), { recursive: true });
