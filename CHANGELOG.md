@@ -6,7 +6,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 
 ---
 
-## [1.2.2] — candidata em 2026-11-07 (não publicada)
+## [1.2.2] — 2026-11-07
 
 ### Added
 - Badge “Recomendado” e layout de cópia revisado na tela Criado; card de link com largura total no desktop e botão de cópia reposicionado no mobile.

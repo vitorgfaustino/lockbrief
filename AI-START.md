@@ -1,6 +1,6 @@
 # AI-START
 
-Este arquivo é a entrada única para qualquer IA operar o LockBrief v1.2.2 (candidato local) com segurança.
+Este arquivo é a entrada única para qualquer IA operar o LockBrief v1.2.2 (release estável) com segurança.
 
 O objetivo dele é permitir que a IA:
 
@@ -35,7 +35,7 @@ Leia nesta ordem antes de agir:
 
 ## Estado atual do produto
 
-LockBrief v1.2.2 (candidato local) é um compartilhador de segredos efêmeros com:
+LockBrief v1.2.2 (release estável) é um compartilhador de segredos efêmeros com:
 
 - criptografia AES-GCM-256 no navegador (Web Crypto API)
 - derivação de chave com senha manual via PBKDF2-SHA256 + HKDF-SHA256
@@ -575,11 +575,11 @@ Se a IA seguir este arquivo corretamente, ela deve conseguir:
 
 ---
 
-Versão candidata 1.2.2
+Versão estável 1.2.2
 Criado por Vitor Faustino — vitorfaustino.com.br
 
 ## Demo privada e release
 
-A demo oficial consome releases estáveis do upstream; não é origem de desenvolvimento. O mecanismo opcional e seus gates estão em `docs/SINCRONIZACAO-DEMO.md`. O upstream não possui credenciais nem recursos operacionais da demo. Push, tag/release, PR privada, merge e deploy exigem os checkpoints humanos descritos ali. Não confundir a versão candidata local com a última release publicada.
+A demo oficial consome releases estáveis do upstream; não é origem de desenvolvimento. O mecanismo opcional e seus gates estão em `docs/SINCRONIZACAO-DEMO.md`. O upstream não possui credenciais nem recursos operacionais da demo. Push, tag/release, PR privada, merge e deploy exigem os checkpoints humanos descritos ali. Não confundir a versão estável publicada com builds locais não versionados.
 
 O inventário, os gates locais e a proteção da `main` da 1.2.2 estão em `docs/RELEASE-1.2.2.md`. O ruleset `Protect main` exige PR e os checks de CI; não desativar a proteção, não fazer push direto e não testar publicação sem autorização explícita.

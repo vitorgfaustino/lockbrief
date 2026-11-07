@@ -225,4 +225,4 @@ Os ícones PWA passam a usar `web-app-manifest-192x192.png`/`512x512.png`, com p
 
 ## Distribuição por release
 
-A manutenção candidata 1.2.2 conserva schema, migrations 0001/0002, API, TTL e envelopes v1/v2. O controlador opcional em `tools/upstream-sync/` pertence à manutenção do repositório privado e não é binding, rota ou dependência do Worker. Contratos do overlay e limites de automação estão em [SINCRONIZACAO-DEMO.md](SINCRONIZACAO-DEMO.md).
+A release 1.2.2 conserva schema, migrations 0001/0002, API, TTL e envelopes v1/v2. O controlador opcional em `tools/upstream-sync/` pertence à manutenção do repositório privado e não é binding, rota ou dependência do Worker. Contratos do overlay e limites de automação estão em [SINCRONIZACAO-DEMO.md](SINCRONIZACAO-DEMO.md).
