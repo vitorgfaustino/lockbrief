@@ -6,7 +6,7 @@ Envie senhas, tokens, chaves de API ou qualquer informação sensível com cript
 
 Este repositório é o código-fonte oficial e a base de distribuição. Não possui implantação de produção, D1 remoto próprio ou conexão operacional com a Cloudflare. Cada operador instala e mantém seus próprios recursos. A CI valida localmente e não publica o upstream.
 
-**Versão candidata atual:** **1.2.2**, ainda sem tag ou publicação. **Última release estável:** **1.2.1**.
+**Versão estável atual:** **1.2.2**, publicada em 07/11/2026. **Release anterior:** **1.2.1**.
 
 **[Acessar demonstração pública do LockBrief](https://lockbrief-demo.vitorgfaustino.workers.dev/)**
 
@@ -222,6 +222,6 @@ Criado por [Vitor Faustino](https://github.com/vitorgfaustino).
 
 ## Release atual e demonstração pública
 
-A versão candidata atual é a **v1.2.2**, ainda sem tag ou publicação. A última release estável publicada é a [v1.2.1](https://github.com/vitorgfaustino/lockbrief/releases/tag/v1.2.1). As mudanças da 1.2.2 estão em [`RELEASE_NOTES.md`](RELEASE_NOTES.md); o inventário, o gate local e a proteção da `main` estão em [`docs/RELEASE-1.2.2.md`](docs/RELEASE-1.2.2.md); as correções e validações históricas da 1.2.1 estão no [Gate Final](docs/GATE-FINAL-RELEASE.md).
+A versão estável atual é a [v1.2.2](https://github.com/vitorgfaustino/lockbrief/releases/tag/v1.2.2), publicada em 07/11/2026. A release anterior é a [v1.2.1](https://github.com/vitorgfaustino/lockbrief/releases/tag/v1.2.1). As mudanças da 1.2.2 estão em [`RELEASE_NOTES.md`](RELEASE_NOTES.md); o inventário, o gate local e a proteção da `main` estão em [`docs/RELEASE-1.2.2.md`](docs/RELEASE-1.2.2.md); as correções e validações históricas da 1.2.1 estão no [Gate Final](docs/GATE-FINAL-RELEASE.md).
 
 A [demo pública do LockBrief](https://lockbrief-demo.vitorgfaustino.workers.dev/) utiliza uma instalação operacional privada e independente, com configuração Cloudflare própria. O [sincronizador opcional](docs/SINCRONIZACAO-DEMO.md) documenta a preparação para consumir releases oficiais; instalações de terceiros permanecem independentes e atualizam seus próprios repositórios.

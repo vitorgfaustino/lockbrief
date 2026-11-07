@@ -4,7 +4,7 @@
 
 `vitorgfaustino/lockbrief` é fonte pública, CI e releases; não tem produção, credenciais ou D1 remoto. `vitorgfaustino/lockbrief-demo` é uma instalação privada que consome releases e conserva sua operação Cloudflare. Outros operadores continuam usando Deploy Button, Workers Builds ou procedimento manual sem depender da demo.
 
-O toolkit em `tools/upstream-sync/` está implementado e testado localmente. Seus YAMLs são templates inativos; não há workflow de sincronização instalado no upstream. A preparação privada está em branch local separada, sem push/PR/merge. v1.2.2 ainda é candidata; o controlador de produção não a incorpora enquanto não existir release estável publicada.
+O toolkit em `tools/upstream-sync/` está implementado e testado localmente. Seus YAMLs são templates inativos; não há workflow de sincronização instalado no upstream. A preparação privada está em branch local separada, sem push/PR/merge. v1.2.2 é a release estável atual; o controlador privado pode consumi-la conforme os gates do repositório operacional.
 
 ## Política de overlay
 

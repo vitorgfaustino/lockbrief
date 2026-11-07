@@ -1,6 +1,6 @@
 # Release 1.2.2 — consolidação e gate local
 
-**Status:** candidata local, não publicada. Não existe tag, GitHub Release, deploy Cloudflare ou migration remota desta versão.
+**Status:** release estável publicada em 07/11/2026. Tag `v1.2.2` no merge commit `fbad02d635cda908f4c619d2585910d8a0cadfe9`; GitHub Release em https://github.com/vitorgfaustino/lockbrief/releases/tag/v1.2.2. Não houve deploy Cloudflare, migration remota ou alteração de produção.
 
 **Baseline:** release estável `v1.2.1` no commit `9f605b047d573f48500eefa4020b293b15a39bec`; trabalho consolidado sobre `507a1a3947f217966d662c43877cdf5982e588e5` com as alterações locais da 1.2.2.
 
@@ -63,6 +63,16 @@ O Worker não recebe plaintext, chave, senha manual nem parâmetros de KDF em cl
 - Links `#v1.<rawId>[.<key>]`, links curtos e links com senha continuam válidos. O fragmento é removido após o parse, antes de `/api/info`, e o retry usa apenas dados em memória.
 - Não há migration, binding ou schema novo. Instalações existentes só precisam reconstruir Worker e assets juntos.
 
+## Publicação
+
+- PR: https://github.com/vitorgfaustino/lockbrief/pull/22 (merge normal, sem bypass administrativo).
+- Merge commit e `main` validada: `fbad02d635cda908f4c619d2585910d8a0cadfe9`.
+- Tag anotada `v1.2.2`: objeto `07668bf11adc17e2e07c8e705c6dbcc63d671add`, apontando para `fbad02d`.
+- GitHub Release: https://github.com/vitorgfaustino/lockbrief/releases/tag/v1.2.2 (`Latest`, não draft, não prerelease).
+- CI do PR: run `42372970368`, ambos os checks verdes.
+- CI do push em `main`: run `42373041932`, ambos os checks verdes.
+- `v1.2.1` permanece publicada; tags existentes não foram movidas.
+
 ## Proteção da branch `main`
 
 ### Antes
@@ -103,18 +113,20 @@ O Worker não recebe plaintext, chave, senha manual nem parâmetros de KDF em cl
 | `npm audit --audit-level=high` | PASS — 0 vulnerabilidades |
 | `git diff --check` | PASS |
 | Wrangler `deploy --dry-run` | PASS — 36,92 KiB / gzip 9,52 KiB; nenhuma publicação |
-| Chromium local (run-2) | PASS — 404/429/500/rede/timeout/inválido/retry; fragmento sempre removido; retry em memória |
+| CI remota do PR | PASS — `quality (22, 10.9.2)` e `quality (24, 11.16.0)` |
+| CI remota do push em `main` | PASS — mesmo par de checks no merge commit |
+| Chromium local (run-2/run-4) | PASS — 404/429/rede/inválido/retry, revelação e clipboard; fragmento sempre removido |
 
 O dry-run leu 28 arquivos de `dist` e confirmou D1 DB e os três rate limiters. Nenhuma credencial Cloudflare foi usada.
 
 ## Riscos e pendências de publicação
 
-- A CI remota para o commit consolidado ainda não foi executada; os checks obrigatórios do ruleset só serão exercitados em um PR real.
-- Tags/releases, deploy Cloudflare, migrations remotas e sincronização da demo permanecem fora desta entrega.
+- A CI remota foi executada no PR #22 e no push do merge commit; o ruleset foi exercitado em PR real e permaneceu ativo.
+- Deploy Cloudflare, migrations remotas e sincronização da demo permanecem fora desta entrega.
 - `npm audit` é temporal; advisories futuros exigem nova execução.
 - A matriz de navegadores foi validada apenas em Chromium local; Safari/Firefox e PWA real não foram reexecutados nesta passagem.
 - O bypass do mantenedor em PR é intencional para recuperação; qualquer ampliação de bypass deve ser revisada.
 
 ## Próximo passo
 
-Revisar os commits locais, executar CI remota em PR autorizado, validar o ruleset em uma operação real de PR e só então decidir tag/release/deploy. Nenhum desses passos foi executado nesta entrega.
+A release está publicada. Próximas manutenções devem seguir o fluxo de PR com o ruleset ativo; deploy Cloudflare continua sendo uma decisão operacional separada de cada instalação e não faz parte desta release.

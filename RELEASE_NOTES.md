@@ -1,6 +1,6 @@
-# Release Notes — LockBrief v1.2.2 (candidata)
+# Release Notes — LockBrief v1.2.2
 
-Preparada em 07/11/2026; ainda sem publicação, tag, GitHub Release ou CI remota do commit consolidado. A última release estável é v1.2.1. O commit final deve receber CI aprovada antes de qualquer tag; nenhuma tag existente será reutilizada.
+Publicada em 07/11/2026 como versão estável: [LockBrief v1.2.2](https://github.com/vitorgfaustino/lockbrief/releases/tag/v1.2.2). A release anterior é a v1.2.1. A tag `v1.2.2` aponta para o merge commit `fbad02d635cda908f4c619d2585910d8a0cadfe9`, validado pela CI nos dois runtimes. Não houve deploy Cloudflare, migration remota ou alteração de produção nesta publicação.
 
 ## Resumo
 
@@ -42,16 +42,19 @@ PBKDF2 210k roda somente no navegador, no modo senha manual. Benchmark local Nod
 - `npm ci` isolado (84 pacotes), `npm run typecheck`, `npm test` (69/69 em seis arquivos), `npm run build` e `npm run test:tooling` (5/5).
 - `npm run test:sync` (17/17), `npm run dev-init` duas vezes, `npm run check:distribution`, `npm audit --audit-level=high` (0 vulnerabilidades) e `git diff --check`.
 - Wrangler `deploy --dry-run`: 36,92 KiB / gzip 9,52 KiB, 28 assets, D1 DB e três rate limiters; nenhuma publicação.
-- Fluxo de revelação exercitado em Chromium local: 404, 429, 500, rede, timeout, fragmento inválido e retry em memória, sempre sem fragmento na barra.
-- axe e Lighthouse são evidências históricas da auditoria de UI da candidata; não foram reexecutados nesta consolidação.
+- Fluxo de revelação exercitado em Chromium local: 404, 429, 500, rede, timeout, fragmento inválido, retry em memória e clipboard, sempre sem fragmento na barra.
+- CI remota do PR #22 e do push em `main`: `quality (22, 10.9.2)` e `quality (24, 11.16.0)` verdes.
+- axe e Lighthouse são evidências históricas da auditoria de UI; não foram reexecutados nesta publicação.
 
 ## Operação e proteção da main
 
-A `main` do upstream está protegida pelo ruleset `Protect main` (id 26756036): sem deleção, sem force push, PR obrigatório, checks `quality (22, 10.9.2)` e `quality (24, 11.16.0)` do GitHub Actions e bypass apenas do mantenedor em PR. Detalhes, configuração anterior e limitações em [`docs/RELEASE-1.2.2.md`](docs/RELEASE-1.2.2.md).
+A `main` do upstream está protegida pelo ruleset `Protect main` (id 26756036): sem deleção, sem force push, PR obrigatório, checks `quality (22, 10.9.2)` e `quality (24, 11.16.0)` do GitHub Actions e bypass apenas do mantenedor em PR. O ruleset foi exercitado no PR #22 e permanece ativo. Detalhes e limitações em [`docs/RELEASE-1.2.2.md`](docs/RELEASE-1.2.2.md).
+
+A tag `v1.2.2` aponta para o merge commit `fbad02d635cda908f4c619d2585910d8a0cadfe9`; a GitHub Release está publicada como `Latest`.
 
 ## Pendências
 
-CI remota do commit consolidado, tag/release, sincronização da demo e deploy continuam pendentes de autorização e execução separadas. Também permanecem pendentes validação real do ruleset em um PR, matriz Safari/Firefox/PWA e revisão de `sha_pinning_required`. Não houve deploy, migration remota, push, tag ou release nesta preparação.
+Deploy Cloudflare, migrations remotas e sincronização da demo continuam fora desta release e exigem autorização operacional separada. Também permanecem pendentes matriz Safari/Firefox/PWA e revisão de `sha_pinning_required`. Não houve deploy, migration remota ou alteração de produção nesta publicação.
 
 ## Sincronização opcional
 

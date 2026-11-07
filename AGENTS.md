@@ -141,7 +141,7 @@ Este repositorio usa documentacao viva. Qualquer agente que altere codigo, plano
 
 ## Estado inicial reconhecido
 
-- Versao candidata atual: `1.2.2` em `package.json`; ultima release estavel documentada: `1.2.1`.
+- Versao estavel atual: `1.2.2`, publicada em 07/11/2026 no commit `fbad02d635cda908f4c619d2585910d8a0cadfe9`; release anterior: `1.2.1`.
 - Dependencias de desenvolvimento: Wrangler 4.158.0, `@cloudflare/vitest-plugin` 1.6.0, Vitest 4.1.12 e `@cloudflare/workers-types` 5.20261107.1; npm 12.2.2 validado com Node 24.18.1; `npm audit` com 0 vulnerabilidades.
 - Direcao visual em `DESIGN.md`; auditoria de UI em `docs/AUDITORIA-UI.md`.
 - O sistema real esta implementado em `src/` (Worker + D1 + cliente TypeScript).
