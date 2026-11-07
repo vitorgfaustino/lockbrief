@@ -1,6 +1,6 @@
 # AI-START
 
-Este arquivo é a entrada única para qualquer IA operar o LockBrief v1.2.1 (candidato local) com segurança.
+Este arquivo é a entrada única para qualquer IA operar o LockBrief v1.2.2 (candidato local) com segurança.
 
 O objetivo dele é permitir que a IA:
 
@@ -31,14 +31,15 @@ Leia nesta ordem antes de agir:
 6. `docs/PRIVACIDADE.md`
 7. `docs/IMPLANTACAO.md`
 8. `docs/COMPORTAMENTO.md`
+9. `DESIGN.md`
 
 ## Estado atual do produto
 
-LockBrief v1.2.1 (candidato local) é um compartilhador de segredos efêmeros com:
+LockBrief v1.2.2 (candidato local) é um compartilhador de segredos efêmeros com:
 
 - criptografia AES-GCM-256 no navegador (Web Crypto API)
-- derivação de chave com senha adicional via PBKDF2-SHA256 + HKDF-SHA256
-- armazenamento no D1 apenas do envelope criptografado (sem plaintext, chave, IP ou user-agent)
+- derivação de chave com senha manual via PBKDF2-SHA256 + HKDF-SHA256
+- armazenamento no D1 apenas do envelope criptografado (sem plaintext, chave/senha automática, IP ou user-agent)
 - confirmação explícita antes de consumir qualquer segredo com `/api/fetch`
 - `/api/info` limitado a metadados mínimos (`oneTime`, `expiresAt`, `requiresPassword`)
 - consumo transacional com leitura única (`DELETE ... RETURNING` ou fallback com `consume_token`)
@@ -46,8 +47,12 @@ LockBrief v1.2.1 (candidato local) é um compartilhador de segredos efêmeros co
 - abuse controls em memória no escopo do isolate (sem persistência de IP)
 - bloqueio leve de bots, crawlers e previews antes das rotas de aplicação
 - erros públicos sempre genéricos e indistinguíveis
-- interface dark mode com glassmorphism e paleta neon ciano
-- links com fragmento `#` para a chave (nunca enviada ao servidor)
+- interface dark com acento ciano, superfícies opacas e vidro restrito ao header; direção registrada em [`DESIGN.md`](DESIGN.md)
+- links com fragmento `#` para a senha automática (chave de 256 bits, nunca enviada ao servidor)
+
+Na interface, “Senha automática” é a chave aleatória de 256 bits que pode ir no link; “Senha manual” é a senha adicional definida pela pessoa. A documentação técnica mantém “chave” quando descreve criptografia.
+
+Estado das dependências de desenvolvimento em 07/11/2026: Wrangler 4.158.0, `@cloudflare/vitest-plugin` 1.6.0, Vitest 4.1.12 e `@cloudflare/workers-types` 5.20261107.1; npm 12.2.2 validado com Node 24.18.1; `npm audit` com 0 vulnerabilidades. A direção visual está em [`DESIGN.md`](DESIGN.md), a auditoria de UI em [`docs/AUDITORIA-UI.md`](docs/AUDITORIA-UI.md) e o gate da 1.2.2 em [`docs/RELEASE-1.2.2.md`](docs/RELEASE-1.2.2.md).
 
 O produto não mantém:
 
@@ -448,6 +453,8 @@ A IA deve parar e entregar handoff quando a tarefa depender de:
 - `docs/OPERACAO-IA.md`
 - `docs/FUNCIONAL.md`
 - `docs/COMPORTAMENTO.md`
+- `docs/AUDITORIA-UI.md`
+- `DESIGN.md`
 - `build-client.mjs`
 
 `wrangler.local.toml` também é operacionalmente importante quando existir, mas é privado e nunca deve ser versionado.
@@ -562,15 +569,17 @@ Se a IA seguir este arquivo corretamente, ela deve conseguir:
 - validar typecheck e testes antes de publicar
 - respeitar o modelo de publicação do usuário
 - parar nos checkpoints manuais corretos
-- nunca expor plaintext, chave ou senha adicional ao Worker
+- nunca expor plaintext, chave (senha automática) ou senha manual ao Worker
 - nunca criar tabelas ou campos que violem a minimização de dados
 - nunca gravar configuração privada no GitHub
 
 ---
 
-Versão candidata 1.2.1
+Versão candidata 1.2.2
 Criado por Vitor Faustino — vitorfaustino.com.br
 
 ## Demo privada e release
 
 A demo oficial consome releases estáveis do upstream; não é origem de desenvolvimento. O mecanismo opcional e seus gates estão em `docs/SINCRONIZACAO-DEMO.md`. O upstream não possui credenciais nem recursos operacionais da demo. Push, tag/release, PR privada, merge e deploy exigem os checkpoints humanos descritos ali. Não confundir a versão candidata local com a última release publicada.
+
+O inventário, os gates locais e a proteção da `main` da 1.2.2 estão em `docs/RELEASE-1.2.2.md`. O ruleset `Protect main` exige PR e os checks de CI; não desativar a proteção, não fazer push direto e não testar publicação sem autorização explícita.

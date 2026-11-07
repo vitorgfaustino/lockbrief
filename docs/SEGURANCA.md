@@ -1,5 +1,9 @@
 # LockBrief — Segurança
 
+## Terminologia
+
+Na interface, “Senha automática” é a chave aleatória de 256 bits que pode ir no link; “Senha manual” é a senha adicional definida pela pessoa. Este documento mantém “chave” e “senha adicional” quando descreve criptografia, para não confundir os dois materiais.
+
 ## Reportando vulnerabilidades
 
 Se você encontrar uma vulnerabilidade de segurança, **não abra uma issue pública**.
@@ -13,10 +17,10 @@ Envie um e-mail para o mantenedor com:
 
 O modelo de segurança do LockBrief assume:
 
-1. **O backend não recebe a chave no fluxo normal**: O Worker e o D1 armazenam e servem o envelope, mas o cliente oficial não envia plaintext, chave ou senha adicional.
+1. **O backend não recebe a chave no fluxo normal**: O Worker e o D1 armazenam e servem o envelope, mas o cliente oficial não envia plaintext, chave (senha automática) ou senha manual.
 2. **O origin é confiável para integridade**: O servidor e a infraestrutura que entregam `client.js`, HTML, service worker e assets precisam fornecer o código oficial sem adulteração. Um origin comprometido pode capturar novos segredos antes da criptografia.
-3. **O navegador é confiável**: A criptografia ocorre localmente e a chave é manuseada no navegador do usuário.
-4. **O link é o segredo**: Quem possui o link completo possui acesso ao segredo. A senha adicional mitiga parcialmente este risco.
+3. **O navegador é confiável**: A criptografia ocorre localmente e a chave (senha automática) é manuseada no navegador do usuário.
+4. **O link é o segredo**: Quem possui o link completo possui acesso ao segredo. A senha manual mitiga parcialmente este risco.
 5. **O transporte é seguro**: HTTPS é obrigatório (Cloudflare fornece por padrão).
 
 ## Algoritmos utilizados
@@ -29,6 +33,24 @@ O modelo de segurança do LockBrief assume:
 | Combinação de chaves | HKDF-SHA256 | RFC 5869; `lockbrief:v1:kdf` legado ou `lockbrief:v2:kdf` atual |
 | Geração de aleatórios | crypto.getRandomValues | CSPRNG do navegador |
 | Codificação | base64url (RFC 4648 §5) | Sem padding |
+
+## Onde a criptografia é executada
+
+| Operação | Remetente | Destinatário | Worker/Cloudflare | Build/ferramentas |
+|---|---:|---:|---:|---:|
+| CSPRNG (`rawId`, chave, salt, IV) | Sim | — | — | — |
+| SHA-256 de `idHash` | Sim | Sim | — | — |
+| PBKDF2-SHA256 210k (senha manual) | Sim | Sim | **Não** | — |
+| HKDF-SHA256 | Sim | Sim | **Não** | — |
+| AES-GCM-256 cifrar/decifrar | Sim | Sim | **Não** | — |
+| SHA-256 da chave de rate limit (`rota:idHash`) | — | — | Sim, por requisição | — |
+| SHA-256 do cache PWA | — | — | — | Sim, no build |
+
+O Worker não recebe plaintext, chave, senha manual ou parâmetros de KDF em claro. Ele valida o envelope, persiste o ciphertext, controla TTL/consumo e calcula um SHA-256 efêmero para a chave do rate limit por recurso. Não há PBKDF2, HKDF, AES-GCM, serviço externo de criptografia ou operação de descriptografia no Worker; o custo criptográfico pesado permanece no dispositivo do usuário.
+
+### Custo do PBKDF2 e decisão de manutenção
+
+PBKDF2 210k é usado apenas no modo senha manual, no navegador. O modo padrão (senha automática de 256 bits) não usa PBKDF2. Benchmark local Node 24/WebCrypto: mediana de ~25 ms para 210k e ~72 ms para 600k por derivação, antes da variabilidade de dispositivos móveis. Elevar o parâmetro para 600k exigiria nova versão/allowlist de envelope e coordenaria compatibilidade de clientes, sem reduzir custo do Worker. A decisão da 1.2.2 é manter 210k e preservar envelopes v1/v2; a senha manual sugerida tem ~53,2 bits, o que reduz a viabilidade de ataque offline.
 
 ## Fluxo criptográfico
 
@@ -57,7 +79,7 @@ Novas criações usam envelope v2 e gravam os parâmetros aceitos em `kdfParams`
 
 - Envelope v1 permanece somente para leitura, com 210.000 iterações e `lockbrief:v1:kdf` implícitos.
 - Envelope v2 é usado para novas criações e exige parâmetros explícitos na allowlist.
-- O Worker rejeita versões, iterações e domínios HKDF desconhecidos antes de persistir. O cliente aplica a mesma validação antes de derivar a chave de um envelope recebido.
+- O Worker rejeita versões desconhecidas e, no envelope v2, iterações e domínios HKDF fora da allowlist antes de persistir. O envelope v1 usa parâmetros legados fixos; o cliente aplica a mesma validação antes de derivar a chave de um envelope recebido.
 - A evolução futura deve criar nova versão/allowlist; não deve reinterpretar um envelope já emitido.
 - O fragmento de URL `#v1` tem versionamento próprio e não muda com o envelope v2.
 
@@ -122,7 +144,7 @@ Limites conhecidos:
 ## Segurança da cadeia de fornecimento
 
 - `package-lock.json` é versionado e a CI instala dependências com `npm ci`.
-- `.npmrc` bloqueia todos os scripts de instalação com `ignore-scripts=true`, compatível com npm 10/11. Dependências diretas estão fixadas; binários nativos vêm dos pacotes opcionais da plataforma. Não usar overrides de ambiente ou flags para reativar scripts.
+- `.npmrc` bloqueia todos os scripts de instalação com `ignore-scripts=true`, compatível com npm 10/11/12. Dependências diretas estão fixadas; binários nativos vêm dos pacotes opcionais da plataforma. Não usar overrides de ambiente ou flags para reativar scripts.
 - A CI falha quando `npm audit --audit-level=high` encontra vulnerabilidade alta ou crítica.
 - GitHub Actions são fixadas por SHA imutável e executam com permissões explícitas mínimas.
 - O checkout da CI não mantém credenciais Git após obter o código.
@@ -149,7 +171,7 @@ Risco residual: se um navegador mantiver assets antigos em cache, uma versão an
 
 1. **Phishing de link**: Se o link for interceptado (ex: ferramenta de ticket, e-mail comprometido), o atacante pode acessar o segredo antes do destinatário legítimo. Use o modo "chave separada" para mitigar.
 
-2. **Senha adicional não validada no servidor**: O servidor não sabe se a senha está correta. Senha incorreta resulta em falha de descriptografia AES-GCM, indistinguível de outros erros.
+2. **Senha manual não validada no servidor**: O servidor não sabe se a senha manual está correta. Senha manual incorreta resulta em falha de descriptografia AES-GCM, indistinguível de outros erros.
 
 3. **Browser extension maliciosa**: Extensões com acesso ao DOM podem interceptar o segredo após descriptografia.
 
@@ -161,12 +183,13 @@ Risco residual: se um navegador mantiver assets antigos em cache, uma versão an
 
 7. **Rate limiting não global**: Os bindings reduzem abuso dentro de uma localidade, mas não garantem limite global exato nem economizam a invocação que já chegou ao Worker.
 
-## Cuidados com senha adicional
+## Cuidados com a senha manual
 
-- A senha adicional nunca é enviada ao Worker.
+- A senha manual nunca é enviada ao Worker.
 - O salt da senha fica armazenado no envelope criptografado.
 - Sem o salt, mesmo com a senha correta, a descriptografia falha.
-- PBKDF2 usa custo fixo de 210.000 iterações. Senhas humanas fracas continuam sujeitas a ataque offline contra o envelope; prefira a senha gerada pelo aplicativo ou o modo de chave automática.
+- PBKDF2 usa custo fixo de 210.000 iterações. Senhas manuais fracas continuam sujeitas a ataque offline contra o envelope; prefira a senha gerada pelo aplicativo ou o modo de senha automática.
+- A sugestão gerada usa CSPRNG, 7 palavras de uma lista de 72 e sufixo de 3 dígitos (≈53,2 bits de entropia). Ela não é registrada e não altera parâmetros de KDF nem envelopes existentes.
 
 ## Política de erro genérico
 
@@ -180,6 +203,14 @@ Nunca é revelado se o segredo:
 - Já foi consumido
 - Teve erro de descriptografia (senha incorreta)
 - Teve colisão de leitura concorrente
+
+Estados operacionais são separados do 404 sem revelar a existência do segredo:
+
+- `429`, falha de rede e timeout de 10 s em `/api/info` mostram "Muitas tentativas" ou "Sem conexão" e permitem retry com o `rawId`/chave mantidos em memória. O fragmento já foi removido da barra de endereço; o endpoint é somente leitura e não consome o segredo.
+- `429` em `/api/fetch` é seguro para retry porque o limite é aplicado antes do `DELETE`/`SELECT` de consumo.
+- Falha ambígua de transporte em `/api/fetch` não é repetida automaticamente: a resposta pode ter sido perdida depois do consumo em leitura única. A tela de erro avisa sobre essa possibilidade e não oferece retry automático.
+- Falha de criação preserva o rascunho no cliente e não envia conteúdo a terceiros.
+- O feedback de cópia só confirma após `navigator.clipboard.writeText` resolver; isso não altera as garantias criptográficas.
 
 Logs operacionais do Worker também não devem incluir payload, IDs, SQL detalhado ou mensagens internas do banco. Erros de banco são registrados com mensagens genéricas.
 
@@ -203,7 +234,7 @@ O LockBrief opera no navegador — o limite de confiança do sistema. Extensões
 - Acessar a área de transferência (clipboard) após o usuário copiar.
 
 **O que o LockBrief faz para reduzir a exposição:**
-- Remove o fragmento da URL o mais cedo possível no carregamento.
+- Remove o fragmento da URL o mais cedo possível no carregamento, logo após o parse, e mantém `rawId`/chave apenas em memória para o retry de metadados.
 - Usa `textContent` (nunca `innerHTML`) para exibir o segredo.
 - Atributos `translate="no"` e `spellcheck="false"` no elemento de revelação.
 - Buffers mutáveis `Uint8Array` de chave são sobrescritos com zeros como melhor esforço após o uso ou substituição.
@@ -220,10 +251,10 @@ Estes riscos são inerentes ao modelo de computação no navegador e afetam qual
 
 ## Auditoria do upstream
 
-O upstream não possui produção nem recursos remotos. Os gates de CI verificam instalação, advisories, tipos do Worker/cliente, migrations locais, testes, template público e empacotamento dry-run; não publicam. A auditoria de dependências é temporal, não prova ausência de vulnerabilidade futura. O override restrito de sharp no Miniflare deve ser revisado nas próximas atualizações do SDK.
+O upstream não possui produção nem recursos remotos. Os gates de CI verificam instalação, advisories, tipos do Worker/cliente, migrations locais, testes, template público e empacotamento dry-run; não publicam. A auditoria de dependências é temporal, não prova ausência de vulnerabilidade futura. O SDK atual (plugin 1.6.0/Miniflare 5.20261104) já declara `sharp 0.35.5`; o override antigo foi removido e a combinação deve ser revisada novamente ao atualizar o SDK.
 
 Valores interpolados na interface escapam também aspas em atributos; plaintext revelado continua usando `textContent`. Falha de rede não provoca retry automático do consumo. A política criptográfica, os envelopes legados e o formato de link permanecem inalterados.
 
 ## Segurança da sincronização opcional
 
-O controlador privado consome release estável por tag/SHA, compara delta e bloqueia tag movida, histórico divergente, personalização desconhecida, schema ou mudança do template. Protege Wrangler operacional e não executa migrations remotas. Token GitHub de escrita fica restrito ao publisher; validação usa HOME isolado e template público em cópia descartável. PR criada exige CI no mesmo SHA e aprovação humana; sem proteção de branch disponível, esse checkpoint é responsabilidade do operador. [Runbook e riscos](SINCRONIZACAO-DEMO.md).
+O controlador privado consome release estável por tag/SHA, compara delta e bloqueia tag movida, histórico divergente, personalização desconhecida, schema ou mudança do template. Protege Wrangler operacional e não executa migrations remotas. Token GitHub de escrita fica restrito ao publisher; validação usa HOME isolado e template público em cópia descartável. PR criada exige CI no mesmo SHA e aprovação humana; quando o repositório privado não tiver proteção de branch disponível, esse checkpoint é responsabilidade do operador. O upstream público tem ruleset próprio em `docs/RELEASE-1.2.2.md`. [Runbook e riscos](SINCRONIZACAO-DEMO.md).

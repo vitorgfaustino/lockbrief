@@ -184,6 +184,8 @@ A CI aplica os seguintes gates antes de aceitar uma mudança:
 
 As Actions de terceiros são referenciadas por SHA imutável, com a versão legível em comentário. O job de qualidade possui apenas permissão `contents: read`, não persiste credenciais do checkout e é encerrado por timeout. Como o projeto não aceita contribuições externas, esse job executa somente em pushes, PRs do mantenedor e PRs do Dependabot; código de PR externo não entra na etapa `npm ci`.
 
+A `main` do upstream está protegida pelo ruleset `Protect main` (id 26756036): bloqueia deleção e force push, exige PR e os checks `quality (22, 10.9.2)` e `quality (24, 11.16.0)` do GitHub Actions. O mantenedor tem bypass apenas em PR, como recuperação administrativa; push direto continua bloqueado. A configuração anterior, a verificação e as pendências estão em [`docs/RELEASE-1.2.2.md`](RELEASE-1.2.2.md). Não desativar ou afrouxar o ruleset para testar publicação; push, tag, release, merge remoto e deploy exigem autorização separada.
+
 O Dependabot verifica semanalmente dependências npm e GitHub Actions. PRs criados por `dependabot[bot]` não são fechados pelo workflow de PR externo, mas nenhuma atualização é mesclada ou publicada automaticamente: CI e revisão humana continuam obrigatórias.
 
 Para atualizar dependências, revise as versões compatíveis em `package.json`, execute `npm install` para regenerar o lockfile deliberadamente e revise o diff. Depois valide a combinação candidata:
@@ -196,9 +198,11 @@ npm run build
 npm test
 ```
 
-Revise `.npmrc`, `package.json` e `package-lock.json` juntos. Dependências diretas estão fixadas; `npm ci` reproduz o lockfile. `ignore-scripts=true` bloqueia todos os lifecycle scripts de instalação em npm 10 e 11. `npm run build`, `npm test` e comandos explicitamente pedidos continuam funcionando. Os binários são fornecidos pelas dependências opcionais da plataforma; não use `--omit=optional`, `--ignore-scripts=false`, `--force`, `--legacy-peer-deps` ou `--dangerously-allow-all-scripts` para ocultar um erro.
+Revise `.npmrc`, `package.json` e `package-lock.json` juntos. Dependências diretas estão fixadas; `npm ci` reproduz o lockfile. `ignore-scripts=true` bloqueia todos os lifecycle scripts de instalação em npm 10, 11 e 12. `npm run build`, `npm test` e comandos explicitamente pedidos continuam funcionando. Os binários são fornecidos pelas dependências opcionais da plataforma; não use `--omit=optional`, `--ignore-scripts=false`, `--force`, `--legacy-peer-deps` ou `--dangerously-allow-all-scripts` para ocultar um erro.
 
-`@cloudflare/vitest-plugin` substitui o pacote antigo, mantendo Vitest 4 compatível. Miniflare é transitivo da combinação publicada pela Cloudflare. O override restrito `miniflare → sharp 0.35.5` corrige advisory na biblioteca nativa sem substituir Wrangler/Miniflare por versões incompatíveis. Revisar/remover o override quando o SDK incorporar uma versão corrigida; não usar `npm audit fix --force`.
+Validação local em 07/11/2026: Node 24.18.1 com npm 12.2.2, Wrangler 4.158.0, `@cloudflare/vitest-plugin` 1.6.0 e Vitest 4.1.12 executou `npm ci` isolado (84 pacotes), `npm run typecheck`, `npm test` (69/69), `npm run build`, `npm run test:tooling` (5/5), `npm run test:sync` (17/17), `npm run dev-init` duas vezes e `wrangler deploy --dry-run` com sucesso; `npm audit` retornou 0 vulnerabilidades. O mínimo declarado no `package.json` continua `npm >=10.9.2`; a matriz de CI documentada permanece Node 22/npm 10.9.2 e Node 24/npm 11.16.0.
+
+`@cloudflare/vitest-plugin` substitui o pacote antigo, mantendo Vitest 4 compatível. Miniflare é transitivo da combinação publicada pela Cloudflare. O SDK atual (plugin 1.6.0/Miniflare 5.20261104) já declara `sharp 0.35.5`; o override antigo `miniflare → sharp` foi removido. Não usar `npm audit fix --force`.
 
 ### Compatibilidade com Workers Builds
 
